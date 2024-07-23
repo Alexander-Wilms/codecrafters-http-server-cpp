@@ -53,8 +53,8 @@ int main(int argc, char **argv) {
   std::cout << "Client connected\n";
 
   // https://pubs.opengroup.org/onlinepubs/007904875/functions/send.html
-  // using a std::string with c_str() doesn't seem to work
-  int bytes_sent = send(client_fd, "HTTP/1.1 200 OK\r\n\r\n", sizeof("HTTP/1.1 200 OK\r\n\r\n"), 0);
+  std::string response = "HTTP/1.1 200 OK\r\n\r\n";
+  int bytes_sent = send(client_fd, response.c_str(), response.length(), 0);
   std::cout << bytes_sent << " bytes sent" << std::endl;
 
   close(client_fd);
