@@ -8,6 +8,24 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+void send_response(int client_fd, int status_code) {
+	// https://pubs.opengroup.org/onlinepubs/007904875/functions/send.html
+	char reason_phrase[1024];
+
+	switch (status_code) {
+	case 200:
+		strcpy(reason_phrase, "OK");
+		break;
+	case 404:
+		strcpy(reason_phrase, "Not Found");
+		break;
+	}
+	std::string response = "HTTP/1.1 " + std::to_string(status_code) + " " + reason_phrase + "\r\n\r\n";
+	int bytes_sent = send(client_fd, response.c_str(), response.length(), 0);
+	std::cout << response << std::endl;
+	std::cout << bytes_sent << " bytes sent" << std::endl;
+}
+
 int main(int argc, char **argv) {
 	// Flush after every std::cout / std::cerr
 	std::cout << std::unitbuf;
@@ -53,14 +71,32 @@ int main(int argc, char **argv) {
 
 	char buffer[1024];
 	// https://pubs.opengroup.org/onlinepubs/009695399/functions/recvfrom.html
-	recvfrom(client_fd, (void *)buffer, 1024, 0, (struct sockaddr *)&client_addr, (socklen_t *)&client_addr_len);
+	recvfrom(client_fd, (void *)buffer, 1024, 0,
+			 (struct sockaddr *)&client_addr, (socklen_t *)&client_addr_len);
 	std::cout << "Message received:\n↓\n"
 			  << buffer << "\n↑" << std::endl;
 
-	// https://pubs.opengroup.org/onlinepubs/007904875/functions/send.html
-	std::string response = "HTTP/1.1 200 OK\r\n\r\n";
-	int bytes_sent = send(client_fd, response.c_str(), response.length(), 0);
-	std::cout << bytes_sent << " bytes sent" << std::endl;
+	// get request target
+	char request_target[1024];
+
+	// On a first call, the function expects a C string as argument for str,
+	// whose first character is used as the starting location to scan for
+	// tokens. In subsequent calls, the function expects a null pointer and uses
+	// the position right after the end of the last token as the new starting
+	// location for scanning.
+	// https://cplusplus.com/reference/cstring/strtok/
+	strcpy(request_target, strtok(buffer, " "));
+	strcpy(request_target, strtok(nullptr, " "));
+
+	std::cout << "Request target: " << request_target << std::endl;
+
+	// return value 0 means the strings are equal
+	// https://cplusplus.com/reference/cstring/strcmp/
+	if (strcmp(request_target, "/") == 0) {
+		send_response(client_fd, 200);
+	} else {
+		send_response(client_fd, 404);
+	}
 
 	close(client_fd);
 	close(server_fd);
