@@ -1,0 +1,6 @@
+# https://stackoverflow.com/a/69311475/2278742
+UseTab: Always
+IndentWidth: 4
+TabWidth: 4
+
+ColumnLimit: 0
