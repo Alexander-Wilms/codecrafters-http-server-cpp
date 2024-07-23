@@ -102,7 +102,10 @@ int main(int argc, char **argv) {
 		send_response(client_fd, 200);
 	} else if (memcmp("/echo/", request_target, 6) == 0) {
 		char parameter[1024];
-		strncpy(parameter, request_target + 6, strlen(request_target - 7));
+		int param_len = strlen(request_target) - 6;
+		strncpy(parameter, request_target + 6, param_len);
+		parameter[param_len] = 0;
+		std::cout << "Parameter: " << parameter << std::endl;
 		send_response(client_fd, 200, parameter);
 	} else {
 		send_response(client_fd, 404);
