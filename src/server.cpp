@@ -8,7 +8,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-void send_response(int client_fd, int status_code) {
+void send_response(const int client_fd, const int status_code, const char *body = "") {
 	// https://pubs.opengroup.org/onlinepubs/007904875/functions/send.html
 	char reason_phrase[1024];
 
@@ -19,8 +19,10 @@ void send_response(int client_fd, int status_code) {
 	case 404:
 		strcpy(reason_phrase, "Not Found");
 		break;
+	default:
+		strcpy(reason_phrase, "Unknown HTTP status code");
 	}
-	std::string response = "HTTP/1.1 " + std::to_string(status_code) + " " + reason_phrase + "\r\n\r\n";
+	std::string response = "HTTP/1.1 " + std::to_string(status_code) + " " + reason_phrase + "\r\n\r\n" + body;
 	int bytes_sent = send(client_fd, response.c_str(), response.length(), 0);
 	std::cout << response << std::endl;
 	std::cout << bytes_sent << " bytes sent" << std::endl;
@@ -92,8 +94,12 @@ int main(int argc, char **argv) {
 
 	// return value 0 means the strings are equal
 	// https://cplusplus.com/reference/cstring/strcmp/
-	if (strcmp(request_target, "/") == 0) {
+	if (strcmp("/", request_target) == 0) {
 		send_response(client_fd, 200);
+	} else if (memcmp("/echo/", request_target, 6) == 0) {
+		char parameter[1024];
+		strncpy(parameter, request_target + 6, strlen(request_target - 6));
+		send_response(client_fd, 200, parameter);
 	} else {
 		send_response(client_fd, 404);
 	}
