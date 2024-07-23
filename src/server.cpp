@@ -7,6 +7,7 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <unistd.h>
 
 int main(int argc, char **argv) {
   // Flush after every std::cout / std::cerr
@@ -48,9 +49,15 @@ int main(int argc, char **argv) {
   
   std::cout << "Waiting for a client to connect...\n";
   
-  accept(server_fd, (struct sockaddr *) &client_addr, (socklen_t *) &client_addr_len);
+  int client_fd = accept(server_fd, (struct sockaddr *) &client_addr, (socklen_t *) &client_addr_len);
   std::cout << "Client connected\n";
-  
+
+  // https://pubs.opengroup.org/onlinepubs/007904875/functions/send.html
+  // using a std::string with c_str() doesn't seem to work
+  int bytes_sent = send(client_fd, "HTTP/1.1 200 OK\r\n\r\n", sizeof("HTTP/1.1 200 OK\r\n\r\n"), 0);
+  std::cout << bytes_sent << " bytes sent" << std::endl;
+
+  close(client_fd);
   close(server_fd);
 
   return 0;
