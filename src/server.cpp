@@ -23,9 +23,12 @@ void send_response(const int client_fd, const int status_code, const char *body 
 		strcpy(reason_phrase, "Unknown HTTP status code");
 	}
 	std::string response = "HTTP/1.1 " + std::to_string(status_code) + " " + reason_phrase + "\r\n" +
-						   "Content-Type: text/plain\r\nContent-Length: 3\r\n\r\n" + "\r\n" + body;
+						   "Content-Type: text/plain\r\nContent-Length: " + std::to_string(strlen(body)) + "\r\n\r\n" + "\r\n" + body;
 	int bytes_sent = send(client_fd, response.c_str(), response.length(), 0);
-	std::cout << response << std::endl;
+
+	std::cout << "Response sent:\n↓\n"
+			  << response << "\n↑" << std::endl;
+
 	std::cout << bytes_sent << " bytes sent" << std::endl;
 }
 
