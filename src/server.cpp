@@ -51,6 +51,12 @@ int main(int argc, char **argv) {
 	int client_fd = accept(server_fd, (struct sockaddr *)&client_addr, (socklen_t *)&client_addr_len);
 	std::cout << "Client connected\n";
 
+	char buffer[1024];
+	// https://pubs.opengroup.org/onlinepubs/009695399/functions/recvfrom.html
+	recvfrom(client_fd, (void *)buffer, 1024, 0, (struct sockaddr *)&client_addr, (socklen_t *)&client_addr_len);
+	std::cout << "Message received:\n↓\n"
+			  << buffer << "\n↑" << std::endl;
+
 	// https://pubs.opengroup.org/onlinepubs/007904875/functions/send.html
 	std::string response = "HTTP/1.1 200 OK\r\n\r\n";
 	int bytes_sent = send(client_fd, response.c_str(), response.length(), 0);
