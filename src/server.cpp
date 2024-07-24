@@ -93,10 +93,6 @@ request_struct extract_request_info(const char *buffer) {
 	char field[1024];
 	char value[1024];
 	char header_copy[1024];
-	char *header_ptr;
-	char *field_ptr = field;
-
-	header_ptr = header_copy;
 	char *headers_ptr = headers;
 
 	// user strtok_r() since we're tokenizing two strings at the same time
