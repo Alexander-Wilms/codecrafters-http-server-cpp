@@ -89,9 +89,33 @@ request_struct extract_request_info(const char *buffer) {
 	std::cout << "Just the headers:\n↓\n"
 			  << headers << "\n↑" << std::endl;
 
+	char *header;
+	char field[1024];
+	char value[1024];
+	char header_copy[1024];
+	char *header_ptr;
+	char *field_ptr = field;
+
+	header_ptr = header_copy;
+	char *headers_ptr = headers;
+
+	// user strtok_r() since we're tokenizing two strings at the same time
+	std::cout << "Just the headers:\n↓" << std::endl;
+	bool done = false;
+	while (!done) {
+		header = strtok_r(headers_ptr, "\r\n", &headers_ptr);
+		done = !header;
+		if (!done) {
+			std::cout << "Header: " << header << std::endl;
+		}
+	}
+	std::cout << "↑" << std::endl;
+
 	const char *body = p_end_of_headers + 4;
 	std::cout << "Just the body:\n↓\n"
 			  << body << "\n↑" << std::endl;
+
+	strcpy(request.body, body);
 
 	return request;
 }
