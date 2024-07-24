@@ -43,12 +43,29 @@ struct arg_struct {
 	socklen_t client_addr_len;
 } args;
 
-void endpoints(int client_fd, char *original_buffer) {
+struct request_struct {
+	char method[1024];
+	char target[1024];
 
+	char header_host[1024];
+	char header_user_agent[1024];
+	char header_accept[1024];
+	char header_content_type[1024];
+	char header_content_length[1024];
+
+	char body[1024];
+};
+
+request_struct extract_request_info(const char *buffer) {
 	// get request target
-	char request_target_copy_of_buffer[1024];
-	strcpy(request_target_copy_of_buffer, original_buffer);
-	char request_target[1024];
+	char copy_of_buffer[1024];
+	char copy_of_buffer_2[1024];
+	char copy_of_buffer_3[1024];
+	strcpy(copy_of_buffer, buffer);
+	strcpy(copy_of_buffer_2, buffer);
+	strcpy(copy_of_buffer_3, buffer);
+
+	request_struct request;
 
 	// On a first call, the function expects a C string as argument for str,
 	// whose first character is used as the starting location to scan for
@@ -56,47 +73,74 @@ void endpoints(int client_fd, char *original_buffer) {
 	// the position right after the end of the last token as the new starting
 	// location for scanning.
 	// https://cplusplus.com/reference/cstring/strtok/
+	strcpy(request.method, strtok(copy_of_buffer, " "));
+	strcpy(request.target, strtok(nullptr, " "));
 
-	strcpy(request_target, strtok(request_target_copy_of_buffer, " "));
-	strcpy(request_target, strtok(nullptr, " "));
+	// char headers[1024];
 
-	std::cout << "Request target: " << request_target << std::endl;
+	const char *p_end_of_request_line = strstr(buffer, "\r\n");
+	const char *p_end_of_headers = strstr(p_end_of_request_line, "\r\n\r\n");
+	const char *c_headers = p_end_of_request_line + 2;
+	char headers[1024];
+	strcpy(headers, c_headers);
+
+	headers[strlen(headers) - 8] = 0;
+
+	std::cout << "Just the headers:\n↓\n"
+			  << headers << "\n↑" << std::endl;
+
+	const char *body = p_end_of_headers + 4;
+	std::cout << "Just the body:\n↓\n"
+			  << body << "\n↑" << std::endl;
+
+	return request;
+}
+
+void endpoints(int client_fd, char *original_buffer) {
+	request_struct request = extract_request_info(original_buffer);
 
 	// return value 0 means the strings are equal
 	// https://cplusplus.com/reference/cstring/strcmp/
-	if (strcmp("/", request_target) == 0) {
+	if (strcmp("/", request.target) == 0) {
 		send_response(client_fd, 200);
-	} else if (memcmp("/echo/", request_target, 6) == 0) {
+	} else if (memcmp("/echo/", request.target, 6) == 0) {
 		char parameter[1024];
-		int param_len = strlen(request_target) - 6;
-		strncpy(parameter, request_target + 6, param_len);
+		int param_len = strlen(request.target) - 6;
+		strncpy(parameter, request.target + 6, param_len);
 		parameter[param_len] = 0;
 		std::cout << "Parameter: " << parameter << std::endl;
 		send_response(client_fd, 200, parameter);
-	} else if (memcmp("/files/", request_target, 7) == 0) {
+	} else if (memcmp("/files/", request.target, 7) == 0) {
 		char filename[1024];
-		int param_len = strlen(request_target) - 6;
-		strncpy(filename, request_target + 7, param_len);
+		int param_len = strlen(request.target) - 6;
+		strncpy(filename, request.target + 7, param_len);
 		filename[param_len] = 0;
 		char absolute_path[1024];
 		strcpy(absolute_path, files_dir);
 		strcat(absolute_path, filename);
 		std::cout << "Path of requested file: " << absolute_path << std::endl;
 
-		FILE *requested_file_fd = fopen(absolute_path, "r");
-		if (requested_file_fd != 0) {
-			// file exists
-			char file_contents[1024];
-			fgets(file_contents, 1024, requested_file_fd);
-			std::cout << "File contents:\n↓\n"
-					  << file_contents << "\n↑" << std::endl;
-			file_contents[strlen(file_contents) + 1] = 0;
-			send_response(client_fd, 200, file_contents, "application/octet-stream");
-		} else {
-			// file doesn't exist
-			send_response(client_fd, 404);
+		if (strcmp("GET", request.method) == 0) {
+			FILE *requested_file_fd = fopen(absolute_path, "r");
+			if (requested_file_fd != 0) {
+				// file exists
+				char file_contents[1024];
+				fgets(file_contents, 1024, requested_file_fd);
+				std::cout << "File contents:\n↓\n"
+						  << file_contents << "\n↑" << std::endl;
+				file_contents[strlen(file_contents) + 1] = 0;
+				send_response(client_fd, 200, file_contents, "application/octet-stream");
+				fclose(requested_file_fd);
+			} else {
+				// file doesn't exist
+				send_response(client_fd, 404);
+			}
+		} else if (strcmp("POST", request.method) == 0) {
+			FILE *file_to_write_fd = fopen(absolute_path, "w");
+			fputs(request.body, file_to_write_fd);
+			fclose(file_to_write_fd);
 		}
-	} else if (memcmp("/user-agent", request_target, 11) == 0) {
+	} else if (memcmp("/user-agent", request.target, 11) == 0) {
 		char user_agent_copy_of_buffer[1024];
 		strcpy(user_agent_copy_of_buffer, original_buffer);
 		char user_agent[1024];
