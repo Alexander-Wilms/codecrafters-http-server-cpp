@@ -174,7 +174,12 @@ void endpoints(int client_fd, char *original_buffer) {
 	http_response_struct response;
 
 	if (strcmp("", request.headers_accept_encoding) != 0) {
-		strcpy(response.headers_content_encoding, request.headers_accept_encoding);
+		// accepted encodings
+		if (strcmp("gzip", request.headers_accept_encoding) == 0) {
+			strcpy(response.headers_content_encoding, request.headers_accept_encoding);
+		} else {
+			std::cout << "Client requested invalid encoding: " << request.headers_accept_encoding << std::endl;
+		}
 	}
 
 	// return value 0 means the strings are equal
