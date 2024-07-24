@@ -1,4 +1,4 @@
-#include "compression.h"
+#include "../include/compression.h"
 #include <arpa/inet.h>
 #include <cstdlib>
 #include <cstring>

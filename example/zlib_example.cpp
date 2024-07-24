@@ -1,7 +1,7 @@
 // Compile with
 // clang src/zlib_example.cpp -lz
 
-#include "compression.h"
+#include "../include/compression.h"
 #include <cstring>
 #include <zlib.h>
 
