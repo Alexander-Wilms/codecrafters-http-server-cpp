@@ -11,6 +11,7 @@
 #include <unistd.h>
 
 int NUM_THREADS = 5;
+char files_dir[1024];
 
 void send_response(const int client_fd, const int status_code, const char *body = "", const char *content_type = "text/plain") {
 	// https://pubs.opengroup.org/onlinepubs/007904875/functions/send.html
@@ -78,7 +79,7 @@ void endpoints(int client_fd, char *original_buffer) {
 		strncpy(filename, request_target + 7, param_len);
 		filename[param_len] = 0;
 		char absolute_path[1024];
-		strcpy(absolute_path, "/tmp/");
+		strcpy(absolute_path, files_dir);
 		strcat(absolute_path, filename);
 		std::cout << "Path of requested file: " << absolute_path << std::endl;
 
@@ -89,6 +90,7 @@ void endpoints(int client_fd, char *original_buffer) {
 			fgets(file_contents, 1024, requested_file_fd);
 			std::cout << "File contents:\n↓\n"
 					  << file_contents << "\n↑" << std::endl;
+			file_contents[strlen(file_contents) + 1] = 0;
 			send_response(client_fd, 200, file_contents, "application/octet-stream");
 		} else {
 			// file doesn't exist
@@ -148,7 +150,13 @@ void *thread(void *arg) {
 	pthread_exit(ret);
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char *argv[]) {
+	for (int i = 0; i < argc; i++) {
+		std::cout << "argv: " << argv[i] << std::endl;
+	}
+
+	strcpy(files_dir, argv[2]);
+
 	// Flush after every std::cout / std::cerr
 	std::cout << std::unitbuf;
 	std::cerr << std::unitbuf;
