@@ -75,14 +75,16 @@ int main(int argc, char **argv) {
 	int client_fd = accept(server_fd, (struct sockaddr *)&client_addr, (socklen_t *)&client_addr_len);
 	std::cout << "Client connected\n";
 
-	char buffer[1024];
+	char original_buffer[1024];
 	// https://pubs.opengroup.org/onlinepubs/009695399/functions/recvfrom.html
-	recvfrom(client_fd, (void *)buffer, 1024, 0,
+	recvfrom(client_fd, (void *)original_buffer, 1024, 0,
 			 (struct sockaddr *)&client_addr, (socklen_t *)&client_addr_len);
 	std::cout << "Message received:\n↓\n"
-			  << buffer << "\n↑" << std::endl;
+			  << original_buffer << "\n↑" << std::endl;
 
 	// get request target
+	char request_target_copy_of_buffer[1024];
+	strcpy(request_target_copy_of_buffer, original_buffer);
 	char request_target[1024];
 
 	// On a first call, the function expects a C string as argument for str,
@@ -91,7 +93,8 @@ int main(int argc, char **argv) {
 	// the position right after the end of the last token as the new starting
 	// location for scanning.
 	// https://cplusplus.com/reference/cstring/strtok/
-	strcpy(request_target, strtok(buffer, " "));
+
+	strcpy(request_target, strtok(request_target_copy_of_buffer, " "));
 	strcpy(request_target, strtok(nullptr, " "));
 
 	std::cout << "Request target: " << request_target << std::endl;
@@ -107,6 +110,19 @@ int main(int argc, char **argv) {
 		parameter[param_len] = 0;
 		std::cout << "Parameter: " << parameter << std::endl;
 		send_response(client_fd, 200, parameter);
+	} else if (memcmp("/user-agent", request_target, 11) == 0) {
+		char user_agent_copy_of_buffer[1024];
+		strcpy(user_agent_copy_of_buffer, original_buffer);
+		char user_agent[1024];
+		strcpy(user_agent, strtok(user_agent_copy_of_buffer, "\r\n"));
+		std::cout << "Request line: " << user_agent << std::endl;
+		strcpy(user_agent, std::strtok(nullptr, "\r\n"));
+		std::cout << "Header 'Host': " << user_agent << std::endl;
+		strcpy(user_agent, std::strtok(nullptr, "\r\n"));
+		std::cout << "Header 'User agent': " << user_agent << std::endl;
+
+		send_response(client_fd, 200, user_agent);
+		
 	} else {
 		send_response(client_fd, 404);
 	}
