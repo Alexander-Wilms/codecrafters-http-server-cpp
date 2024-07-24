@@ -3,10 +3,13 @@
 #include <cstring>
 #include <iostream>
 #include <netdb.h>
+#include <pthread.h>
 #include <string>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
+
+int NUM_THREADS = 5;
 
 void send_response(const int client_fd, const int status_code, const char *body = "") {
 	// https://pubs.opengroup.org/onlinepubs/007904875/functions/send.html
@@ -30,6 +33,91 @@ void send_response(const int client_fd, const int status_code, const char *body 
 			  << response << "\n↑" << std::endl;
 
 	std::cout << bytes_sent << " bytes sent" << std::endl;
+}
+
+struct arg_struct {
+	int server_fd;
+	sockaddr_in client_addr;
+	socklen_t client_addr_len;
+} args;
+
+void *thread(void *arg) {
+	char *ret;
+	printf("thread() entered\n");
+
+	int server_fd = args.server_fd;
+	sockaddr_in client_addr = args.client_addr;
+	socklen_t client_addr_len = args.client_addr_len;
+
+	if ((ret = (char *)malloc(20)) == NULL) {
+		perror("malloc() error");
+		exit(2);
+	}
+	strcpy(ret, "This is a test");
+
+	std::cout << "Waiting for a client to connect...\n";
+
+	// The accept() function shall extract the first connection on the queue of pending connections, create a new socket with the same socket type protocol and address family as the specified socket, and allocate a new file descriptor for that socket.
+	int client_fd = accept(server_fd, (struct sockaddr *)&client_addr, (socklen_t *)&client_addr_len);
+	std::cout << "Client connected\n";
+
+	char original_buffer[1024];
+	// https://pubs.opengroup.org/onlinepubs/009695399/functions/recvfrom.html
+	recvfrom(client_fd, (void *)original_buffer, 1024, 0,
+			 (struct sockaddr *)&client_addr, (socklen_t *)&client_addr_len);
+	std::cout << "Message received:\n↓\n"
+			  << original_buffer << "\n↑" << std::endl;
+
+	// get request target
+	char request_target_copy_of_buffer[1024];
+	strcpy(request_target_copy_of_buffer, original_buffer);
+	char request_target[1024];
+
+	// On a first call, the function expects a C string as argument for str,
+	// whose first character is used as the starting location to scan for
+	// tokens. In subsequent calls, the function expects a null pointer and uses
+	// the position right after the end of the last token as the new starting
+	// location for scanning.
+	// https://cplusplus.com/reference/cstring/strtok/
+
+	strcpy(request_target, strtok(request_target_copy_of_buffer, " "));
+	strcpy(request_target, strtok(nullptr, " "));
+
+	std::cout << "Request target: " << request_target << std::endl;
+
+	// return value 0 means the strings are equal
+	// https://cplusplus.com/reference/cstring/strcmp/
+	if (strcmp("/", request_target) == 0) {
+		send_response(client_fd, 200);
+	} else if (memcmp("/echo/", request_target, 6) == 0) {
+		char parameter[1024];
+		int param_len = strlen(request_target) - 6;
+		strncpy(parameter, request_target + 6, param_len);
+		parameter[param_len] = 0;
+		std::cout << "Parameter: " << parameter << std::endl;
+		send_response(client_fd, 200, parameter);
+	} else if (memcmp("/user-agent", request_target, 11) == 0) {
+		char user_agent_copy_of_buffer[1024];
+		strcpy(user_agent_copy_of_buffer, original_buffer);
+		char user_agent[1024];
+		strcpy(user_agent, strtok(user_agent_copy_of_buffer, "\r\n"));
+		std::cout << "Request line: " << user_agent << std::endl;
+		strcpy(user_agent, std::strtok(nullptr, "\r\n"));
+		std::cout << "Header 'Host': " << user_agent << std::endl;
+		strcpy(user_agent, std::strtok(nullptr, "\r\n"));
+		std::cout << "Header 'User agent': " << user_agent << std::endl;
+
+		char just_the_user_agent[1024];
+		int param_len = strlen(user_agent) - 12;
+		strncpy(just_the_user_agent, user_agent + 12, param_len);
+		send_response(client_fd, 200, just_the_user_agent);
+	} else {
+		send_response(client_fd, 404);
+	}
+
+	close(client_fd);
+
+	pthread_exit(ret);
 }
 
 int main(int argc, char **argv) {
@@ -61,7 +149,7 @@ int main(int argc, char **argv) {
 		return 1;
 	}
 
-	int connection_backlog = 5;
+	int connection_backlog = NUM_THREADS;
 	if (listen(server_fd, connection_backlog) != 0) {
 		std::cerr << "listen failed\n";
 		return 1;
@@ -70,66 +158,32 @@ int main(int argc, char **argv) {
 	struct sockaddr_in client_addr;
 	int client_addr_len = sizeof(client_addr);
 
-	while (true) {
-		std::cout << "Waiting for a client to connect...\n";
+	// create as many threads as there are places in the queue created by listen()
+	// https://www.ibm.com/docs/en/zos/2.4.0?topic=functions-pthread-create-create-thread
+	// https://hpc-tutorials.llnl.gov/posix/passing_args/
+	pthread_t thread_ids[NUM_THREADS];
 
-		int client_fd = accept(server_fd, (struct sockaddr *)&client_addr, (socklen_t *)&client_addr_len);
-		std::cout << "Client connected\n";
+	// pass arguments as struct
+	args.server_fd = server_fd;
+	args.client_addr = client_addr;
+	args.client_addr_len = client_addr_len;
 
-		char original_buffer[1024];
-		// https://pubs.opengroup.org/onlinepubs/009695399/functions/recvfrom.html
-		recvfrom(client_fd, (void *)original_buffer, 1024, 0,
-				 (struct sockaddr *)&client_addr, (socklen_t *)&client_addr_len);
-		std::cout << "Message received:\n↓\n"
-				  << original_buffer << "\n↑" << std::endl;
-
-		// get request target
-		char request_target_copy_of_buffer[1024];
-		strcpy(request_target_copy_of_buffer, original_buffer);
-		char request_target[1024];
-
-		// On a first call, the function expects a C string as argument for str,
-		// whose first character is used as the starting location to scan for
-		// tokens. In subsequent calls, the function expects a null pointer and uses
-		// the position right after the end of the last token as the new starting
-		// location for scanning.
-		// https://cplusplus.com/reference/cstring/strtok/
-
-		strcpy(request_target, strtok(request_target_copy_of_buffer, " "));
-		strcpy(request_target, strtok(nullptr, " "));
-
-		std::cout << "Request target: " << request_target << std::endl;
-
-		// return value 0 means the strings are equal
-		// https://cplusplus.com/reference/cstring/strcmp/
-		if (strcmp("/", request_target) == 0) {
-			send_response(client_fd, 200);
-		} else if (memcmp("/echo/", request_target, 6) == 0) {
-			char parameter[1024];
-			int param_len = strlen(request_target) - 6;
-			strncpy(parameter, request_target + 6, param_len);
-			parameter[param_len] = 0;
-			std::cout << "Parameter: " << parameter << std::endl;
-			send_response(client_fd, 200, parameter);
-		} else if (memcmp("/user-agent", request_target, 11) == 0) {
-			char user_agent_copy_of_buffer[1024];
-			strcpy(user_agent_copy_of_buffer, original_buffer);
-			char user_agent[1024];
-			strcpy(user_agent, strtok(user_agent_copy_of_buffer, "\r\n"));
-			std::cout << "Request line: " << user_agent << std::endl;
-			strcpy(user_agent, std::strtok(nullptr, "\r\n"));
-			std::cout << "Header 'Host': " << user_agent << std::endl;
-			strcpy(user_agent, std::strtok(nullptr, "\r\n"));
-			std::cout << "Header 'User agent': " << user_agent << std::endl;
-
-			char just_the_user_agent[1024];
-			int param_len = strlen(user_agent) - 12;
-			strncpy(just_the_user_agent, user_agent + 12, param_len);
-			send_response(client_fd, 200, just_the_user_agent);
-		} else {
-			send_response(client_fd, 404);
+	for (int i = 0; i < NUM_THREADS; i++) {
+		if (pthread_create(&thread_ids[i], NULL, thread, (void *)&args) != 0) {
+			perror("pthread_create() failed");
+			exit(1);
 		}
-
-		close(client_fd);
 	}
+
+	void *ret;
+	// wait for all threads to terminate
+	for (int i = 0; i < NUM_THREADS; i++) {
+		if (pthread_join(thread_ids[i], &ret) != 0) {
+			perror("pthread_join() error");
+			exit(3);
+		}
+	}
+	close(server_fd);
+
+	return 0;
 }
