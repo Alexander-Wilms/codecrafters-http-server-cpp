@@ -1,3 +1,4 @@
+#include "compression.h"
 #include <arpa/inet.h>
 #include <cstdlib>
 #include <cstring>
@@ -9,6 +10,7 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <zlib.h>
 
 int NUM_THREADS = 5;
 char files_dir[1024];
@@ -45,13 +47,13 @@ struct http_response_struct {
 	char body[1024] = "";
 };
 
-void http_response_struct_to_string(http_response_struct response, char *response_string) {
+void http_response_struct_to_string(http_response_struct response, char *response_string, int content_length) {
 	std::string response_std_string = std::string("HTTP/1.1 ") + response.status_line_status_code + " " + response.status_line_status_text + "\r\n" +
 									  "Content-Type: " + response.headers_content_type + "\r\n";
 	if (strcmp("", response.headers_content_encoding) != 0) {
 		response_std_string = response_std_string + "Content-Encoding: " + response.headers_content_encoding + "\r\n";
 	}
-	response_std_string = response_std_string + "Content-Length:" + std::to_string(strlen(response.body)) + "\r\n\r\n" +
+	response_std_string = response_std_string + "Content-Length:" + std::to_string(content_length) + "\r\n\r\n" +
 						  response.body;
 
 	strcpy(response_string, response_std_string.c_str());
@@ -78,12 +80,36 @@ void send_response(const int client_fd, http_response_struct response, const int
 	strcpy(response.status_line_status_code, std::to_string(status_code).c_str());
 	strcpy(response.status_line_status_text, reason_phrase);
 	strcpy(response.headers_content_type, content_type);
-	strcpy(response.body, body);
+
+	Bytef compressed_body[1024];
+	int body_length;
+	if (strcmp("gzip", response.headers_content_encoding) == 0) {
+		char input[] = "abc";
+
+		gzip_compress(body, compressed_body, &body_length);
+
+	} else {
+		strcpy(response.body, body);
+		body_length = strlen(body);
+	}
 
 	char response_string[1024];
-	http_response_struct_to_string(response, response_string);
+	http_response_struct_to_string(response, response_string, body_length);
 
-	int bytes_sent = send(client_fd, response_string, strlen(response_string), 0);
+	int response_length = strlen(response_string);
+	std::cout << "Intending to send " << response_length << " bytes in total" << std::endl;
+
+	if (strcmp("gzip", response.headers_content_encoding) == 0) {
+		memcpy(response_string + response_length, compressed_body, body_length);
+	}
+
+	int bytes_sent = send(client_fd, response_string, response_length + body_length, 0);
+
+	std::cout << "Intending to send " << body_length << " bytes as body" << std::endl;
+	for (int i = 0; i < body_length; i++) {
+		printf("Sending byte %x\n", compressed_body[i]);
+		send(client_fd, (void *)compressed_body[i], 1, 0);
+	}
 
 	std::cout << "Response sent:\n↓\n"
 			  << response_string << "\n↑" << std::endl;
