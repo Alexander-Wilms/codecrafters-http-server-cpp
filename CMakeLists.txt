@@ -12,4 +12,6 @@ find_package(ZLIB REQUIRED)
 
 add_executable(server ${SOURCE_FILES})
 
+target_compile_options(server PRIVATE -Wno-int-to-pointer-cast)
+
 target_link_libraries(server PRIVATE Threads::Threads ZLIB::ZLIB)
