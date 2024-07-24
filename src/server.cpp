@@ -174,11 +174,31 @@ void endpoints(int client_fd, char *original_buffer) {
 	http_response_struct response;
 
 	if (strcmp("", request.headers_accept_encoding) != 0) {
-		// accepted encodings
-		if (strcmp("gzip", request.headers_accept_encoding) == 0) {
-			strcpy(response.headers_content_encoding, request.headers_accept_encoding);
-		} else {
-			std::cout << "Client requested invalid encoding: " << request.headers_accept_encoding << std::endl;
+		// client sent Accepted-Encoding header
+		char *encoding_token;
+		bool first_call_to_strtok = true;
+
+		bool done = false;
+		while (encoding_token && !done) {
+			if (first_call_to_strtok) {
+				encoding_token = strtok(request.headers_accept_encoding, ", ");
+				first_call_to_strtok = false;
+			} else {
+				encoding_token = strtok(nullptr, ", ");
+			}
+
+			if (encoding_token == NULL) {
+				break;
+			}
+			std::cout << "Encoding token: " << encoding_token << std::endl;
+
+			if (strcmp("gzip", encoding_token) == 0) {
+				strcpy(response.headers_content_encoding, encoding_token);
+				std::cout << "Client requested valid encoding: " << encoding_token << std::endl;
+				break;
+			} else {
+				std::cout << "Client requested invalid encoding: " << encoding_token << std::endl;
+			}
 		}
 	}
 
