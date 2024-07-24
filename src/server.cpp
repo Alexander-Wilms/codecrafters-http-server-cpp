@@ -4,6 +4,7 @@
 #include <iostream>
 #include <netdb.h>
 #include <pthread.h>
+#include <stdio.h>
 #include <string>
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -11,7 +12,7 @@
 
 int NUM_THREADS = 5;
 
-void send_response(const int client_fd, const int status_code, const char *body = "") {
+void send_response(const int client_fd, const int status_code, const char *body = "", const char *content_type = "text/plain") {
 	// https://pubs.opengroup.org/onlinepubs/007904875/functions/send.html
 	char reason_phrase[1024];
 
@@ -26,7 +27,7 @@ void send_response(const int client_fd, const int status_code, const char *body 
 		strcpy(reason_phrase, "Unknown HTTP status code");
 	}
 	std::string response = "HTTP/1.1 " + std::to_string(status_code) + " " + reason_phrase + "\r\n" +
-						   "Content-Type: text/plain\r\nContent-Length: " + std::to_string(strlen(body)) + "\r\n\r\n" + body;
+						   "Content-Type: " + content_type + "\r\nContent-Length: " + std::to_string(strlen(body)) + "\r\n\r\n" + body;
 	int bytes_sent = send(client_fd, response.c_str(), response.length(), 0);
 
 	std::cout << "Response sent:\n↓\n"
@@ -71,6 +72,25 @@ void endpoints(int client_fd, char *original_buffer) {
 		parameter[param_len] = 0;
 		std::cout << "Parameter: " << parameter << std::endl;
 		send_response(client_fd, 200, parameter);
+	} else if (memcmp("/files/", request_target, 7) == 0) {
+		char filename[1024];
+		int param_len = strlen(request_target) - 6;
+		strncpy(filename, request_target + 6, param_len);
+		filename[param_len] = 0;
+		std::cout << "Path of requested file: " << filename << std::endl;
+
+		FILE *requested_file_fd = fopen(filename, "r");
+		if (requested_file_fd != 0) {
+			// file exists
+			char file_contents[1024];
+			fgets(file_contents, 1024, requested_file_fd);
+			std::cout << "File contents:\n↓\n"
+					  << file_contents << "\n↑" << std::endl;
+			send_response(client_fd, 200, file_contents, "application/octet-stream");
+		} else {
+			// file doesn't exist
+			send_response(client_fd, 404);
+		}
 	} else if (memcmp("/user-agent", request_target, 11) == 0) {
 		char user_agent_copy_of_buffer[1024];
 		strcpy(user_agent_copy_of_buffer, original_buffer);
