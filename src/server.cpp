@@ -109,6 +109,18 @@ request_struct extract_request_info(const char *buffer) {
 			std::cout << "Field: " << field << std::endl;
 			strcpy(value, header + strlen(field) + strlen(": "));
 			std::cout << "Value: " << value << std::endl;
+
+			if (strcmp("Host", field) == 0) {
+				strcpy(request.header_host, value);
+			} else if (strcmp("User-Agent", field) == 0) {
+				strcpy(request.header_user_agent, value);
+			} else if (strcmp("Accept", field) == 0) {
+				strcpy(request.header_accept, value);
+			} else if (strcmp("Content-Type", field) == 0) {
+				strcpy(request.header_content_type, value);
+			} else if (strcmp("Content-Length", field) == 0) {
+				strcpy(request.header_content_length, value);
+			}
 		}
 	}
 	std::cout << "↑" << std::endl;
