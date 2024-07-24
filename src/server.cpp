@@ -46,20 +46,20 @@ struct arg_struct {
 	socklen_t client_addr_len;
 } args;
 
-struct request_struct {
-	char method[1024];
-	char target[1024];
+struct http_request_struct {
+	char request_line_method[1024] = "";
+	char request_line_target[1024] = "";
 
-	char header_host[1024];
-	char header_user_agent[1024];
-	char header_accept[1024];
-	char header_content_type[1024];
-	char header_content_length[1024];
+	char headers_host[1024] = "";
+	char headers_user_agent[1024] = "";
+	char headers_accept[1024] = "";
+	char headers_content_type[1024] = "";
+	char headers_content_length[1024] = "";
 
-	char body[1024];
+	char body[1024] = "";
 };
 
-request_struct extract_request_info(const char *buffer) {
+http_request_struct extract_request_info(const char *buffer) {
 	// get request target
 	char copy_of_buffer[1024];
 	char copy_of_buffer_2[1024];
@@ -68,7 +68,7 @@ request_struct extract_request_info(const char *buffer) {
 	strcpy(copy_of_buffer_2, buffer);
 	strcpy(copy_of_buffer_3, buffer);
 
-	request_struct request;
+	http_request_struct request;
 
 	// On a first call, the function expects a C string as argument for str,
 	// whose first character is used as the starting location to scan for
@@ -76,8 +76,8 @@ request_struct extract_request_info(const char *buffer) {
 	// the position right after the end of the last token as the new starting
 	// location for scanning.
 	// https://cplusplus.com/reference/cstring/strtok/
-	strcpy(request.method, strtok(copy_of_buffer, " "));
-	strcpy(request.target, strtok(nullptr, " "));
+	strcpy(request.request_line_method, strtok(copy_of_buffer, " "));
+	strcpy(request.request_line_target, strtok(nullptr, " "));
 
 	const char *p_end_of_request_line = strstr(buffer, "\r\n");
 	const char *p_end_of_headers = strstr(p_end_of_request_line, "\r\n\r\n");
@@ -93,7 +93,7 @@ request_struct extract_request_info(const char *buffer) {
 	char *header;
 	char field[1024];
 	char value[1024];
-	char header_copy[1024];
+	char headers_copy[1024];
 	char *headers_ptr = headers;
 
 	// user strtok_r() since we're tokenizing two strings at the same time
@@ -105,22 +105,22 @@ request_struct extract_request_info(const char *buffer) {
 		if (!done) {
 			std::cout << "Header: " << header << std::endl;
 
-			strcpy(header_copy, header);
-			strcpy(field, strtok(header_copy, ":"));
+			strcpy(headers_copy, header);
+			strcpy(field, strtok(headers_copy, ":"));
 			std::cout << "Field: " << field << std::endl;
 			strcpy(value, header + strlen(field) + strlen(": "));
 			std::cout << "Value: " << value << std::endl;
 
 			if (strcmp("Host", field) == 0) {
-				strcpy(request.header_host, value);
+				strcpy(request.headers_host, value);
 			} else if (strcmp("User-Agent", field) == 0) {
-				strcpy(request.header_user_agent, value);
+				strcpy(request.headers_user_agent, value);
 			} else if (strcmp("Accept", field) == 0) {
-				strcpy(request.header_accept, value);
+				strcpy(request.headers_accept, value);
 			} else if (strcmp("Content-Type", field) == 0) {
-				strcpy(request.header_content_type, value);
+				strcpy(request.headers_content_type, value);
 			} else if (strcmp("Content-Length", field) == 0) {
-				strcpy(request.header_content_length, value);
+				strcpy(request.headers_content_length, value);
 			}
 		}
 	}
@@ -136,30 +136,30 @@ request_struct extract_request_info(const char *buffer) {
 }
 
 void endpoints(int client_fd, char *original_buffer) {
-	request_struct request = extract_request_info(original_buffer);
+	http_request_struct request = extract_request_info(original_buffer);
 
 	// return value 0 means the strings are equal
 	// https://cplusplus.com/reference/cstring/strcmp/
-	if (strcmp("/", request.target) == 0) {
+	if (strcmp("/", request.request_line_target) == 0) {
 		send_response(client_fd, 200);
-	} else if (memcmp("/echo/", request.target, 6) == 0) {
+	} else if (memcmp("/echo/", request.request_line_target, 6) == 0) {
 		char parameter[1024];
-		int param_len = strlen(request.target) - 6;
-		strncpy(parameter, request.target + 6, param_len);
+		int param_len = strlen(request.request_line_target) - 6;
+		strncpy(parameter, request.request_line_target + 6, param_len);
 		parameter[param_len] = 0;
 		std::cout << "Parameter: " << parameter << std::endl;
 		send_response(client_fd, 200, parameter);
-	} else if (memcmp("/files/", request.target, 7) == 0) {
+	} else if (memcmp("/files/", request.request_line_target, 7) == 0) {
 		char filename[1024];
-		int param_len = strlen(request.target) - 6;
-		strncpy(filename, request.target + 7, param_len);
+		int param_len = strlen(request.request_line_target) - 6;
+		strncpy(filename, request.request_line_target + 7, param_len);
 		filename[param_len] = 0;
 		char absolute_path[1024];
 		strcpy(absolute_path, files_dir);
 		strcat(absolute_path, filename);
 		std::cout << "Path of requested file: " << absolute_path << std::endl;
 
-		if (strcmp("GET", request.method) == 0) {
+		if (strcmp("GET", request.request_line_method) == 0) {
 			FILE *requested_file_fd = fopen(absolute_path, "r");
 			if (requested_file_fd != 0) {
 				// file exists
@@ -174,14 +174,14 @@ void endpoints(int client_fd, char *original_buffer) {
 				// file doesn't exist
 				send_response(client_fd, 404);
 			}
-		} else if (strcmp("POST", request.method) == 0) {
+		} else if (strcmp("POST", request.request_line_method) == 0) {
 			std::cout << "Writing file '" << absolute_path << "'" << std::endl;
 			FILE *file_to_write_fd = fopen(absolute_path, "w");
 			fputs(request.body, file_to_write_fd);
 			fclose(file_to_write_fd);
 			send_response(client_fd, 201);
 		}
-	} else if (memcmp("/user-agent", request.target, 11) == 0) {
+	} else if (memcmp("/user-agent", request.request_line_target, 11) == 0) {
 		char user_agent_copy_of_buffer[1024];
 		strcpy(user_agent_copy_of_buffer, original_buffer);
 		char user_agent[1024];
