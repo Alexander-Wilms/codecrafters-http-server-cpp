@@ -41,32 +41,7 @@ struct arg_struct {
 	socklen_t client_addr_len;
 } args;
 
-void *thread(void *arg) {
-	char *ret;
-	printf("thread() entered\n");
-
-	int server_fd = args.server_fd;
-	sockaddr_in client_addr = args.client_addr;
-	socklen_t client_addr_len = args.client_addr_len;
-
-	if ((ret = (char *)malloc(20)) == NULL) {
-		perror("malloc() error");
-		exit(2);
-	}
-	strcpy(ret, "This is a test");
-
-	std::cout << "Waiting for a client to connect...\n";
-
-	// The accept() function shall extract the first connection on the queue of pending connections, create a new socket with the same socket type protocol and address family as the specified socket, and allocate a new file descriptor for that socket.
-	int client_fd = accept(server_fd, (struct sockaddr *)&client_addr, (socklen_t *)&client_addr_len);
-	std::cout << "Client connected\n";
-
-	char original_buffer[1024];
-	// https://pubs.opengroup.org/onlinepubs/009695399/functions/recvfrom.html
-	recvfrom(client_fd, (void *)original_buffer, 1024, 0,
-			 (struct sockaddr *)&client_addr, (socklen_t *)&client_addr_len);
-	std::cout << "Message received:\n↓\n"
-			  << original_buffer << "\n↑" << std::endl;
+void endpoints(int client_fd, char *original_buffer) {
 
 	// get request target
 	char request_target_copy_of_buffer[1024];
@@ -114,6 +89,36 @@ void *thread(void *arg) {
 	} else {
 		send_response(client_fd, 404);
 	}
+}
+
+void *thread(void *arg) {
+	char *ret;
+	printf("thread() entered\n");
+
+	int server_fd = args.server_fd;
+	sockaddr_in client_addr = args.client_addr;
+	socklen_t client_addr_len = args.client_addr_len;
+
+	if ((ret = (char *)malloc(20)) == NULL) {
+		perror("malloc() error");
+		exit(2);
+	}
+	strcpy(ret, "This is a test");
+
+	std::cout << "Waiting for a client to connect...\n";
+
+	// The accept() function shall extract the first connection on the queue of pending connections, create a new socket with the same socket type protocol and address family as the specified socket, and allocate a new file descriptor for that socket.
+	int client_fd = accept(server_fd, (struct sockaddr *)&client_addr, (socklen_t *)&client_addr_len);
+	std::cout << "Client connected\n";
+
+	char request_buffer[1024];
+	// https://pubs.opengroup.org/onlinepubs/009695399/functions/recvfrom.html
+	recvfrom(client_fd, (void *)request_buffer, 1024, 0,
+			 (struct sockaddr *)&client_addr, (socklen_t *)&client_addr_len);
+	std::cout << "Message received:\n↓\n"
+			  << request_buffer << "\n↑" << std::endl;
+
+	endpoints(client_fd, request_buffer);
 
 	close(client_fd);
 
