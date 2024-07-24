@@ -21,6 +21,9 @@ void send_response(const int client_fd, const int status_code, const char *body 
 	case 200:
 		strcpy(reason_phrase, "OK");
 		break;
+	case 201:
+		strcpy(reason_phrase, "Created");
+		break;
 	case 404:
 		strcpy(reason_phrase, "Not Found");
 		break;
@@ -75,8 +78,6 @@ request_struct extract_request_info(const char *buffer) {
 	// https://cplusplus.com/reference/cstring/strtok/
 	strcpy(request.method, strtok(copy_of_buffer, " "));
 	strcpy(request.target, strtok(nullptr, " "));
-
-	// char headers[1024];
 
 	const char *p_end_of_request_line = strstr(buffer, "\r\n");
 	const char *p_end_of_headers = strstr(p_end_of_request_line, "\r\n\r\n");
@@ -174,9 +175,11 @@ void endpoints(int client_fd, char *original_buffer) {
 				send_response(client_fd, 404);
 			}
 		} else if (strcmp("POST", request.method) == 0) {
+			std::cout << "Writing file '" << absolute_path << "'" << std::endl;
 			FILE *file_to_write_fd = fopen(absolute_path, "w");
 			fputs(request.body, file_to_write_fd);
 			fclose(file_to_write_fd);
+			send_response(client_fd, 201);
 		}
 	} else if (memcmp("/user-agent", request.target, 11) == 0) {
 		char user_agent_copy_of_buffer[1024];
