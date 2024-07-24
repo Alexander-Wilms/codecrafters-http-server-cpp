@@ -107,6 +107,12 @@ request_struct extract_request_info(const char *buffer) {
 		done = !header;
 		if (!done) {
 			std::cout << "Header: " << header << std::endl;
+
+			strcpy(header_copy, header);
+			strcpy(field, strtok(header_copy, ":"));
+			std::cout << "Field: " << field << std::endl;
+			strcpy(value, header + strlen(field) + strlen(": "));
+			std::cout << "Value: " << value << std::endl;
 		}
 	}
 	std::cout << "↑" << std::endl;
