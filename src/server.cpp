@@ -121,8 +121,10 @@ int main(int argc, char **argv) {
 		strcpy(user_agent, std::strtok(nullptr, "\r\n"));
 		std::cout << "Header 'User agent': " << user_agent << std::endl;
 
-		send_response(client_fd, 200, user_agent);
-		
+		char just_the_user_agent[1024];
+		int param_len = strlen(user_agent) - 12;
+		strncpy(just_the_user_agent, user_agent + 12, param_len);
+		send_response(client_fd, 200, just_the_user_agent);
 	} else {
 		send_response(client_fd, 404);
 	}
