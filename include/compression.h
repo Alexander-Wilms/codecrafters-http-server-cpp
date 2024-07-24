@@ -19,8 +19,8 @@ int gzip_compress(const char *input, Bytef *output, int *compressed_length) {
 	}
 
 	// Set input data
-	strm.next_in = (Bytef *)"abc";
-	strm.avail_in = 3;
+	strm.next_in = (Bytef *)input;
+	strm.avail_in = strlen(input);
 
 	// Output buffer
 	Bytef compressed_data[1024];

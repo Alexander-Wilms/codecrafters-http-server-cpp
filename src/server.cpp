@@ -84,7 +84,7 @@ void send_response(const int client_fd, http_response_struct response, const int
 	Bytef compressed_body[1024];
 	int body_length;
 	if (strcmp("gzip", response.headers_content_encoding) == 0) {
-		char input[] = "abc";
+		std::cout << "About to compress body '" << body << "'" << std::endl;
 
 		gzip_compress(body, compressed_body, &body_length);
 
