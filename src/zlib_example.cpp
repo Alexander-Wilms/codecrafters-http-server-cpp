@@ -1,10 +1,12 @@
 // Compile with
 // clang src/zlib_example.cpp -lz
 
+#include <cstring>
 #include <stdio.h>
 #include <zlib.h>
 
-int main() {
+int gzip_compress(char *input, int *output, int *compressed_length) {
+	printf("Data to compress:\n%s\n", input);
 	z_stream strm;
 	int ret;
 
@@ -42,11 +44,27 @@ int main() {
 	// 00000000  1f 8b 08 00 00 00 00 00  00 03 4b 4c 4a 06 00 c2  |..........KLJ...|
 	// 00000010  41 24 35 03 00 00 00                              |A$5....|
 	// 00000017
+
+	printf("Compressed data:\n");
 	for (int i = 0; i < strm.total_out; i++) {
 		printf("%x ", compressed_data[i]);
 	}
 	printf("\n");
 
 	deflateEnd(&strm);
+
+	memcpy(output, compressed_data, strm.total_out);
+	*compressed_length = strm.total_out;
+
+	return 0;
+}
+
+int main() {
+	char input[] = "abc";
+	int compressed_data[1024];
+	int compressed_length;
+
+	gzip_compress(input, compressed_data, &compressed_length);
+
 	return 0;
 }
