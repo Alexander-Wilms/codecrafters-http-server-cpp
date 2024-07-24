@@ -75,11 +75,14 @@ void endpoints(int client_fd, char *original_buffer) {
 	} else if (memcmp("/files/", request_target, 7) == 0) {
 		char filename[1024];
 		int param_len = strlen(request_target) - 6;
-		strncpy(filename, request_target + 6, param_len);
+		strncpy(filename, request_target + 7, param_len);
 		filename[param_len] = 0;
-		std::cout << "Path of requested file: " << filename << std::endl;
+		char absolute_path[1024];
+		strcpy(absolute_path, "/tmp/");
+		strcat(absolute_path, filename);
+		std::cout << "Path of requested file: " << absolute_path << std::endl;
 
-		FILE *requested_file_fd = fopen(filename, "r");
+		FILE *requested_file_fd = fopen(absolute_path, "r");
 		if (requested_file_fd != 0) {
 			// file exists
 			char file_contents[1024];
