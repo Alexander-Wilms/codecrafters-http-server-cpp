@@ -87,7 +87,7 @@ void send_response(const int client_fd, http_response_struct response, const int
 	int body_length = 0;
 	if (response.headers_content_encoding == "gzip") {
 		std::cout << "About to compress body '" << body << "'" << std::endl;
-		gzip_compress(body.c_str(), compressed_body, &body_length);
+		gzip_compress(body.data(), compressed_body, &body_length);
 	} else {
 		std::cout << "Not compressing body '" << body << "'" << std::endl;
 		response.body = body;
