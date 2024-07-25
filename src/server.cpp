@@ -15,13 +15,12 @@
 const int CHAR_ARRAY_LENGTH = 2048;
 const int NUM_THREADS = 5;
 
-char files_dir[CHAR_ARRAY_LENGTH];
-
 struct arg_struct {
 	int server_fd;
 	sockaddr_in client_addr;
 	socklen_t client_addr_len;
-} args;
+	char files_dir[CHAR_ARRAY_LENGTH];
+} thread_args;
 
 // https://developer.mozilla.org/en-US/docs/Web/HTTP/Messages
 struct http_request_struct {
@@ -213,7 +212,7 @@ void filename_to_content_type(const char *filename, char *content_type) {
 	}
 }
 
-void endpoints(const int client_fd, const char *original_buffer) {
+void endpoints(const int client_fd, const char *original_buffer, const char *files_dir) {
 	std::printf("Endpoints()\n");
 	http_request_struct request = extract_request_info(original_buffer);
 	http_response_struct response;
@@ -315,9 +314,10 @@ void *thread(void *arg) {
 	char *ret;
 	std::printf("thread() entered\n");
 
-	int server_fd = args.server_fd;
-	sockaddr_in client_addr = args.client_addr;
-	socklen_t client_addr_len = args.client_addr_len;
+	int server_fd = thread_args.server_fd;
+	sockaddr_in client_addr = thread_args.client_addr;
+	socklen_t client_addr_len = thread_args.client_addr_len;
+	char *files_dir = thread_args.files_dir;
 
 	if ((ret = (char *)malloc(20)) == nullptr) {
 		perror("malloc() error");
@@ -338,7 +338,7 @@ void *thread(void *arg) {
 	std::cout << "Message received:\n↓\n"
 			  << request_buffer << "\n↑" << std::endl;
 
-	endpoints(client_fd, request_buffer);
+	endpoints(client_fd, request_buffer, files_dir);
 
 	close(client_fd);
 
@@ -350,6 +350,7 @@ int main(int argc, char *argv[]) {
 		std::cout << "argv: " << argv[i] << std::endl;
 	}
 
+	char files_dir[CHAR_ARRAY_LENGTH];
 	if (argc == 3) {
 		strcpy(files_dir, argv[2]);
 	} else {
@@ -398,15 +399,16 @@ int main(int argc, char *argv[]) {
 	pthread_t thread_ids[NUM_THREADS];
 
 	// pass arguments as struct
-	args.server_fd = server_fd;
-	args.client_addr = client_addr;
-	args.client_addr_len = client_addr_len;
+	thread_args.server_fd = server_fd;
+	thread_args.client_addr = client_addr;
+	thread_args.client_addr_len = client_addr_len;
+	strcpy(thread_args.files_dir, files_dir);
 
 	// create 5 concurrent threads listen()ing to connections
 	// when all 5 threads ahave terminated, create 5 new ones
 	while (true) {
 		for (int i = 0; i < NUM_THREADS; i++) {
-			if (pthread_create(&thread_ids[i], nullptr, thread, (void *)&args) != 0) {
+			if (pthread_create(&thread_ids[i], nullptr, thread, (void *)&thread_args) != 0) {
 				perror("pthread_create() failed");
 				exit(1);
 			}
