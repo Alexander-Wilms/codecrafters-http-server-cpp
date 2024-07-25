@@ -60,7 +60,7 @@ void http_response_struct_to_string(const http_response_struct &response, std::s
 	response_string += response.body;
 }
 
-void send_response(const int client_fd, http_response_struct response, const int status_code, const std::string &body = "", const std::string &content_type = "text/plain") {
+void send_response(const int client_fd, http_response_struct response, const int status_code, std::string_view body = "", const std::string &content_type = "text/plain") {
 	std::printf("send_response()\n");
 
 	std::string reason_phrase;
