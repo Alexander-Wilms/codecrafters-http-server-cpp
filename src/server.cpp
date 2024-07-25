@@ -230,7 +230,6 @@ void endpoints(const int client_fd, const std::string &original_buffer, const st
 		// client sent Accepted-Encoding header
 		std::istringstream headers_accept_encoding_iss(request.headers_accept_encoding);
 		std::string encoding_token;
-		bool done = false;
 		while (std::getline(headers_accept_encoding_iss, encoding_token, ',')) {
 			trim(encoding_token);
 			std::cout << "Encoding token: " << encoding_token << std::endl;
