@@ -13,7 +13,7 @@
 #include <zlib.h>
 
 const int CHAR_ARRAY_LENGTH = 2048;
-int NUM_THREADS = 5;
+const int NUM_THREADS = 5;
 
 char files_dir[CHAR_ARRAY_LENGTH];
 
