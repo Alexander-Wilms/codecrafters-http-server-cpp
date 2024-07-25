@@ -50,12 +50,14 @@ struct http_response_struct {
 };
 
 void http_response_struct_to_string(const http_response_struct &response, std::string &response_string, const int content_length) {
-	response_string = "HTTP/1.1 " + response.status_line_status_code + " " + response.status_line_status_text + "\r\n" +
-					  "Content-Type: " + response.headers_content_type + "\r\n";
+	response_string = "HTTP/1.1 " + response.status_line_status_code + " " + response.status_line_status_text + "\r\n";
+	response_string += "Content-Type: " + response.headers_content_type + "\r\n";
+	std::printf("http_response_struct_to_string >>> %s", response.headers_content_encoding.c_str());
 	if (!response.headers_content_encoding.empty()) {
 		response_string += "Content-Encoding: " + response.headers_content_encoding + "\r\n";
 	}
-	response_string += "Content-Length: " + std::to_string(content_length) + "\r\n\r\n" + response.body;
+	response_string += "Content-Length: " + std::to_string(content_length) + "\r\n\r\n";
+	response_string += response.body;
 }
 
 void send_response(const int client_fd, http_response_struct response, const int status_code, const std::string &body = "", const std::string &content_type = "text/plain") {
@@ -123,60 +125,84 @@ void trim(std::string &str) {
 			  str.end());
 }
 
-http_request_struct extract_request_info(const std::string &buffer) {
+http_request_struct extract_request_info(const char *buffer) {
 	std::printf("extract_request_info()\n");
+	// get request target
+	char copy_of_buffer[CHAR_ARRAY_LENGTH];
+	strcpy(copy_of_buffer, buffer);
 
 	http_request_struct request;
 
-	std::istringstream buffer_iss(buffer);
-	// Use getline for line-by-line parsing
-	std::getline(buffer_iss, request.request_line_method, ' '); // Read method till space
-	std::getline(buffer_iss, request.request_line_target);		// Read target
+	// On a first call, the function expects a C string as argument for str,
+	// whose first character is used as the starting location to scan for
+	// tokens. In subsequent calls, the function expects a null pointer and uses
+	// the position right after the end of the last token as the new starting
+	// location for scanning.
+	// https://cplusplus.com/reference/cstring/strtok/
+	request.request_line_method = std::string(strtok(copy_of_buffer, " "));
+	request.request_line_target = std::string(strtok(nullptr, " "));
 
-	std::string headers;
-	// Read headers until an empty line
-	while (std::getline(buffer_iss, headers) && !headers.empty()) {
-		headers += '\n'; // Add newline back for proper parsing
+	const char *p_end_of_request_line = strstr(buffer, "\r\n");
+	const char *p_end_of_headers = strstr(p_end_of_request_line, "\r\n\r\n");
+	const char *c_headers = p_end_of_request_line + 2;
+	char headers[CHAR_ARRAY_LENGTH];
+	strcpy(headers, c_headers);
+
+	if (p_end_of_headers != nullptr) {
+		headers[p_end_of_headers - p_end_of_request_line] = 0;
 	}
 
-	std::istringstream headers_stream(headers);
-	std::string header;
-	// Parse headers using getline and string manipulation
-	while (std::getline(headers_stream, header, '\r')) { // Read header line
-		if (header.empty()) {
-			continue; // Skip empty line
-		}
+	std::cout << "Just the headers:\n↓\n"
+			  << headers << "\n↑" << std::endl;
 
-		size_t colon_pos = header.find(':');
-		if (colon_pos != std::string::npos) {
-			std::string field = header.substr(0, colon_pos);
-			trim(field); // Remove leading/trailing whitespace from field
+	const char *header;
+	char field[CHAR_ARRAY_LENGTH];
+	char value[CHAR_ARRAY_LENGTH];
+	char headers_copy[CHAR_ARRAY_LENGTH];
+	char *headers_ptr = headers;
 
-			std::string value = header.substr(colon_pos + 1);
-			trim(value); // Remove leading/trailing whitespace from value
+	// user strtok_r() since we're tokenizing two strings at the same time
+	std::cout << "Individual headers:\n↓" << std::endl;
+	bool done = false;
+	while (!done) {
+		header = strtok_r(headers_ptr, "\r\n", &headers_ptr);
+		done = !header;
+		if (!done) {
+			std::cout << "Header: " << header << std::endl;
 
-			if (field == "Host") {
-				request.headers_host = value;
-			} else if (field == "User-Agent") {
-				request.headers_user_agent = value;
-			} else if (field == "Accept") {
-				request.headers_accept = value;
-			} else if (field == "Accept-Encoding") {
-				request.headers_accept_encoding = value;
-			} else if (field == "Content-Type") {
-				request.headers_content_type = value;
-			} else if (field == "Content-Length") {
-				request.headers_content_length = value;
+			strcpy(headers_copy, header);
+			strcpy(field, strtok(headers_copy, ":"));
+			std::cout << "\tField: " << field << std::endl;
+			strcpy(value, header + strlen(field) + strlen(": "));
+			std::cout << "\tValue: " << value << std::endl;
+
+			if (strcmp("Host", field) == 0) {
+				request.headers_host = std::string(value);
+			} else if (strcmp("User-Agent", field) == 0) {
+				request.headers_user_agent = std::string(value);
+			} else if (strcmp("Accept", field) == 0) {
+				request.headers_accept = std::string(value);
+			} else if (strcmp("Accept-Encoding", field) == 0) {
+				request.headers_accept_encoding = std::string(value);
+			} else if (strcmp("Content-Type", field) == 0) {
+				request.headers_content_type = std::string(value);
+			} else if (strcmp("Content-Length", field) == 0) {
+				request.headers_content_length = std::string(value);
 			}
 		}
 	}
+	std::cout << "↑" << std::endl;
 
-	// Extract body if present (after empty header line)
-	if (buffer_iss.eof()) {
-		request.body = "";
+	char body[CHAR_ARRAY_LENGTH];
+	if (p_end_of_headers != nullptr) {
+		strcpy(body, p_end_of_headers + 4);
+		std::cout << "Just the body:\n↓\n"
+				  << body << "\n↑" << std::endl;
 	} else {
-		std::getline(buffer_iss, request.body); // Read entire body data
+		strcpy(body, "");
+		std::printf("No body\n");
 	}
+	request.body = std::string(body);
 
 	return request;
 }
@@ -194,8 +220,10 @@ void filename_to_content_type(const std::string &filename, std::string &content_
 
 void endpoints(const int client_fd, const std::string &original_buffer, const std::string &files_dir) {
 	std::printf("Endpoints()\n");
-	http_request_struct request = extract_request_info(original_buffer);
+	http_request_struct request = extract_request_info(original_buffer.c_str());
 	http_response_struct response;
+
+	std::printf("endpoints > headers_content_encoding >>> '%s'\n", request.headers_accept_encoding.c_str());
 
 	if (!request.headers_accept_encoding.empty()) {
 		// client sent Accepted-Encoding header
@@ -213,6 +241,8 @@ void endpoints(const int client_fd, const std::string &original_buffer, const st
 			}
 		}
 	}
+
+	std::printf("endpoints >>> %s", response.headers_content_encoding.c_str());
 
 	std::printf("Request line target: %s\n", request.request_line_target.c_str());
 	if (request.request_line_target == "/") {
