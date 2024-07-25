@@ -302,7 +302,7 @@ void endpoints(const int client_fd, const std::string &original_buffer, const st
 [[noreturn]] void *thread(void *arg) {
 	std::printf("thread() entered\n");
 
-	arg_struct *arg_cast_to_struct = (arg_struct *)arg;
+	const arg_struct *arg_cast_to_struct = (arg_struct *)arg;
 	int server_fd = arg_cast_to_struct->server_fd;
 	sockaddr_in client_addr = arg_cast_to_struct->client_addr;
 	socklen_t client_addr_len = arg_cast_to_struct->client_addr_len;
