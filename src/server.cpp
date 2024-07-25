@@ -12,7 +12,7 @@
 #include <unistd.h>
 #include <zlib.h>
 
-#define CHAR_ARRAY_LENGTH 2024
+#define CHAR_ARRAY_LENGTH 2048
 int NUM_THREADS = 5;
 
 char files_dir[CHAR_ARRAY_LENGTH];
