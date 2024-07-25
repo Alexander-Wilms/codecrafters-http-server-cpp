@@ -62,7 +62,7 @@ void http_response_struct_to_string(const http_response_struct response, char *r
 }
 
 void send_response(const int client_fd, http_response_struct response, const int status_code, const char *body = "", const char *content_type = "text/plain") {
-	printf("send_response()\n");
+	std::printf("send_response()\n");
 	// https://pubs.opengroup.org/onlinepubs/007904875/functions/send.html
 	char reason_phrase[CHAR_ARRAY_LENGTH];
 
@@ -110,7 +110,7 @@ void send_response(const int client_fd, http_response_struct response, const int
 
 	std::cout << "Intending to send " << body_length << " bytes as body" << std::endl;
 	for (int i = 0; i < body_length; i++) {
-		printf("Sending byte %x\n", compressed_body[i]);
+		std::printf("Sending byte %x\n", compressed_body[i]);
 		send(client_fd, (void *)compressed_body[i], 1, 0);
 	}
 
@@ -121,7 +121,7 @@ void send_response(const int client_fd, http_response_struct response, const int
 }
 
 http_request_struct extract_request_info(const char *buffer) {
-	printf("extract_request_info()\n");
+	std::printf("extract_request_info()\n");
 	// get request target
 	char copy_of_buffer[CHAR_ARRAY_LENGTH];
 	strcpy(copy_of_buffer, buffer);
@@ -195,7 +195,7 @@ http_request_struct extract_request_info(const char *buffer) {
 				  << body << "\n↑" << std::endl;
 	} else {
 		strcpy(body, "");
-		printf("No body\n");
+		std::printf("No body\n");
 	}
 	strcpy(request.body, body);
 
@@ -203,7 +203,7 @@ http_request_struct extract_request_info(const char *buffer) {
 }
 
 void endpoints(const int client_fd, const char *original_buffer) {
-	printf("Endpoints()\n");
+	std::printf("Endpoints()\n");
 	http_request_struct request = extract_request_info(original_buffer);
 	http_response_struct response;
 
@@ -236,14 +236,14 @@ void endpoints(const int client_fd, const char *original_buffer) {
 		}
 	}
 
-	printf("Request line target: %s\n", request.request_line_target);
+	std::printf("Request line target: %s\n", request.request_line_target);
 	// return value 0 means the strings are equal
 	// https://cplusplus.com/reference/cstring/strcmp/
 	if (strcmp("/", request.request_line_target) == 0) {
-		printf("Endpoint: /\n");
+		std::printf("Endpoint: /\n");
 		send_response(client_fd, response, 200);
 	} else if (memcmp("/echo/", request.request_line_target, 6) == 0) {
-		printf("Endpoint: /echo/\n");
+		std::printf("Endpoint: /echo/\n");
 		char parameter[CHAR_ARRAY_LENGTH];
 		int param_len = strlen(request.request_line_target) - 6;
 		strncpy(parameter, request.request_line_target + 6, param_len);
@@ -251,7 +251,7 @@ void endpoints(const int client_fd, const char *original_buffer) {
 		std::cout << "Parameter: " << parameter << std::endl;
 		send_response(client_fd, response, 200, parameter);
 	} else if (memcmp("/files/", request.request_line_target, 7) == 0) {
-		printf("Endpoint: /files/\n");
+		std::printf("Endpoint: /files/\n");
 		char filename[CHAR_ARRAY_LENGTH];
 		int param_len = strlen(request.request_line_target) - 6;
 		strncpy(filename, request.request_line_target + 7, param_len);
@@ -273,12 +273,12 @@ void endpoints(const int client_fd, const char *original_buffer) {
 				char content_type[1024];
 				// setting correct Content-Type for .html files, so they're displayed instead of downloaded by Firefox
 				// https://stackoverflow.com/a/28006229/2278742
-				printf("Checking if '%s' contains '.html'\n", filename);
+				std::printf("Checking if '%s' contains '.html'\n", filename);
 				if (strstr(filename, ".html") != nullptr) {
-					printf("It does\n");
+					std::printf("It does\n");
 					strcpy(content_type, "text/html");
 				} else {
-					printf("It doesn't\n");
+					std::printf("It doesn't\n");
 					strcpy(content_type, "application/octet-stream");
 				}
 				send_response(client_fd, response, 200, file_contents, content_type);
@@ -295,7 +295,7 @@ void endpoints(const int client_fd, const char *original_buffer) {
 			send_response(client_fd, response, 201);
 		}
 	} else if (memcmp("/user-agent", request.request_line_target, 11) == 0) {
-		printf("Endpoint: /user-agent\n");
+		std::printf("Endpoint: /user-agent\n");
 		char user_agent_copy_of_buffer[CHAR_ARRAY_LENGTH];
 		strcpy(user_agent_copy_of_buffer, original_buffer);
 		char user_agent[CHAR_ARRAY_LENGTH];
@@ -311,7 +311,7 @@ void endpoints(const int client_fd, const char *original_buffer) {
 		strncpy(just_the_user_agent, user_agent + 12, param_len);
 		send_response(client_fd, response, 200, just_the_user_agent);
 	} else {
-		printf("Endpoint: None\n");
+		std::printf("Endpoint: None\n");
 		send_response(client_fd, response, 404);
 	}
 }
@@ -320,7 +320,7 @@ void endpoints(const int client_fd, const char *original_buffer) {
 // https://hpc-tutorials.llnl.gov/posix/passing_args/
 void *thread(void *arg) {
 	char *ret;
-	printf("thread() entered\n");
+	std::printf("thread() entered\n");
 
 	int server_fd = args.server_fd;
 	sockaddr_in client_addr = args.client_addr;
