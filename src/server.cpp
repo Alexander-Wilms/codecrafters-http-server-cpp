@@ -299,7 +299,7 @@ void endpoints(const int client_fd, const std::string &original_buffer, const st
 
 // https://www.ibm.com/docs/en/zos/2.4.0?topic=functions-pthread-create-create-thread
 // https://hpc-tutorials.llnl.gov/posix/passing_args/
-void *thread(void *arg) {
+[[noreturn]] void *thread(void *arg) {
 	std::printf("thread() entered\n");
 
 	arg_struct *arg_cast_to_struct = (arg_struct *)arg;
