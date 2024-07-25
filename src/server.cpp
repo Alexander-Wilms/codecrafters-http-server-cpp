@@ -124,11 +124,7 @@ http_request_struct extract_request_info(const char *buffer) {
 	printf("extract_request_info()\n");
 	// get request target
 	char copy_of_buffer[CHAR_ARRAY_LENGTH];
-	char copy_of_buffer_2[CHAR_ARRAY_LENGTH];
-	char copy_of_buffer_3[CHAR_ARRAY_LENGTH];
 	strcpy(copy_of_buffer, buffer);
-	strcpy(copy_of_buffer_2, buffer);
-	strcpy(copy_of_buffer_3, buffer);
 
 	http_request_struct request;
 
