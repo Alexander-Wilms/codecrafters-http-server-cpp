@@ -296,20 +296,7 @@ void endpoints(const int client_fd, const char *original_buffer) {
 		}
 	} else if (memcmp("/user-agent", request.request_line_target, 11) == 0) {
 		std::printf("Endpoint: /user-agent\n");
-		char user_agent_copy_of_buffer[CHAR_ARRAY_LENGTH];
-		strcpy(user_agent_copy_of_buffer, original_buffer);
-		char user_agent[CHAR_ARRAY_LENGTH];
-		strcpy(user_agent, strtok(user_agent_copy_of_buffer, "\r\n"));
-		std::cout << "Request line: " << user_agent << std::endl;
-		strcpy(user_agent, std::strtok(nullptr, "\r\n"));
-		std::cout << "Header 'Host': " << user_agent << std::endl;
-		strcpy(user_agent, std::strtok(nullptr, "\r\n"));
-		std::cout << "Header 'User agent': " << user_agent << std::endl;
-
-		char just_the_user_agent[CHAR_ARRAY_LENGTH];
-		int param_len = strlen(user_agent) - 12;
-		strncpy(just_the_user_agent, user_agent + 12, param_len);
-		send_response(client_fd, response, 200, just_the_user_agent);
+		send_response(client_fd, response, 200, request.headers_user_agent);
 	} else {
 		std::printf("Endpoint: None\n");
 		send_response(client_fd, response, 404);
