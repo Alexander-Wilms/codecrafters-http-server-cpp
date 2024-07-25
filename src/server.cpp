@@ -5,6 +5,7 @@
 #include <iostream>
 #include <netdb.h>
 #include <pthread.h>
+#include <sstream>
 #include <stdio.h>
 #include <string>
 #include <sys/socket.h>
@@ -19,225 +20,192 @@ struct arg_struct {
 	int server_fd;
 	sockaddr_in client_addr;
 	socklen_t client_addr_len;
-	char files_dir[CHAR_ARRAY_LENGTH];
+	std::string files_dir;
 };
 
 // https://developer.mozilla.org/en-US/docs/Web/HTTP/Messages
 struct http_request_struct {
-	char request_line_method[CHAR_ARRAY_LENGTH] = "";
-	char request_line_target[CHAR_ARRAY_LENGTH] = "";
+	std::string request_line_method;
+	std::string request_line_target;
 
-	char headers_host[CHAR_ARRAY_LENGTH] = "";
-	char headers_user_agent[CHAR_ARRAY_LENGTH] = "";
-	char headers_accept[CHAR_ARRAY_LENGTH] = "";
-	char headers_accept_encoding[CHAR_ARRAY_LENGTH] = "";
-	char headers_content_type[CHAR_ARRAY_LENGTH] = "";
-	char headers_content_length[CHAR_ARRAY_LENGTH] = "";
+	std::string headers_host;
+	std::string headers_user_agent;
+	std::string headers_accept;
+	std::string headers_accept_encoding;
+	std::string headers_content_type;
+	std::string headers_content_length;
 
-	char body[CHAR_ARRAY_LENGTH] = "";
+	std::string body;
 };
 
 struct http_response_struct {
-	char status_line_status_code[CHAR_ARRAY_LENGTH] = "";
-	char status_line_status_text[CHAR_ARRAY_LENGTH] = "";
+	std::string status_line_status_code;
+	std::string status_line_status_text;
 
-	char headers_content_encoding[CHAR_ARRAY_LENGTH] = "";
-	char headers_content_type[CHAR_ARRAY_LENGTH] = "";
-	char headers_content_length[CHAR_ARRAY_LENGTH] = "";
+	std::string headers_content_encoding;
+	std::string headers_content_type;
+	std::string headers_content_length;
 
-	char body[CHAR_ARRAY_LENGTH] = "";
+	std::string body;
 };
 
-void http_response_struct_to_string(const http_response_struct &response, char *response_string, const int content_length) {
-	std::string response_std_string = std::string("HTTP/1.1 ") + response.status_line_status_code + " " + response.status_line_status_text + "\r\n" +
-									  "Content-Type: " + response.headers_content_type + "\r\n";
-	if (strcmp("", response.headers_content_encoding) != 0) {
-		response_std_string = response_std_string + "Content-Encoding: " + response.headers_content_encoding + "\r\n";
+void http_response_struct_to_string(const http_response_struct &response, std::string &response_string, const int content_length) {
+	response_string = "HTTP/1.1 " + response.status_line_status_code + " " + response.status_line_status_text + "\r\n" +
+					  "Content-Type: " + response.headers_content_type + "\r\n";
+	if (!response.headers_content_encoding.empty()) {
+		response_string += "Content-Encoding: " + response.headers_content_encoding + "\r\n";
 	}
-	response_std_string = response_std_string + "Content-Length:" + std::to_string(content_length) + "\r\n\r\n" +
-						  response.body;
-
-	strcpy(response_string, response_std_string.c_str());
+	response_string += "Content-Length: " + std::to_string(content_length) + "\r\n\r\n" + response.body;
 }
 
-void send_response(const int client_fd, http_response_struct response, const int status_code, const char *body = "", const char *content_type = "text/plain") {
+void send_response(const int client_fd, http_response_struct response, const int status_code, const std::string &body = "", const std::string &content_type = "text/plain") {
 	std::printf("send_response()\n");
-	// https://pubs.opengroup.org/onlinepubs/007904875/functions/send.html
-	char reason_phrase[CHAR_ARRAY_LENGTH];
 
+	std::string reason_phrase;
 	switch (status_code) {
 	case 200:
-		strcpy(reason_phrase, "OK");
+		reason_phrase = "OK";
 		break;
 	case 201:
-		strcpy(reason_phrase, "Created");
+		reason_phrase = "Created";
 		break;
 	case 404:
-		strcpy(reason_phrase, "Not Found");
+		reason_phrase = "Not Found";
 		break;
 	default:
-		strcpy(reason_phrase, "Unknown HTTP status code");
+		reason_phrase = "Unknown HTTP status code";
 	}
 
-	strcpy(response.status_line_status_code, std::to_string(status_code).c_str());
-	strcpy(response.status_line_status_text, reason_phrase);
-	strcpy(response.headers_content_type, content_type);
+	response.status_line_status_code = std::to_string(status_code);
+	response.status_line_status_text = reason_phrase;
+	response.headers_content_type = content_type;
 
+	std::string response_string;
 	Bytef compressed_body[CHAR_ARRAY_LENGTH];
 	int body_length = 0;
-	if (strcmp("gzip", response.headers_content_encoding) == 0) {
+	if (response.headers_content_encoding == "gzip") {
 		std::cout << "About to compress body '" << body << "'" << std::endl;
-
-		gzip_compress(body, compressed_body, &body_length);
-
+		gzip_compress(body.c_str(), compressed_body, &body_length);
 	} else {
-		strcpy(response.body, body);
-		body_length = strlen(body);
+		response.body = body;
+		body_length = body.length();
 	}
 
-	char response_string[CHAR_ARRAY_LENGTH];
 	http_response_struct_to_string(response, response_string, body_length);
 
-	int response_length = strlen(response_string);
+	int response_length = response_string.length();
 	std::cout << "Intending to send " << response_length << " bytes in total" << std::endl;
 
-	if (strcmp("gzip", response.headers_content_encoding) == 0) {
-		memcpy(response_string + response_length, compressed_body, body_length);
+	if (response.headers_content_encoding == "gzip") {
+		response_string.append(reinterpret_cast<const char *>(compressed_body), body_length);
 	}
 
-	int bytes_sent = send(client_fd, response_string, response_length + body_length, 0);
+	int bytes_sent = send(client_fd, response_string.c_str(), response_length + body_length, 0);
 
 	std::cout << "Intending to send " << body_length << " bytes as body" << std::endl;
 	for (int i = 0; i < body_length; i++) {
 		std::printf("Sending byte %x\n", compressed_body[i]);
-		send(client_fd, (void *)compressed_body[i], 1, 0);
+		send(client_fd, (void *)&compressed_body[i], 1, 0);
 	}
 
 	std::cout << "Response sent:\n↓\n"
 			  << response_string << "\n↑" << std::endl;
-
 	std::cout << bytes_sent << " bytes sent" << std::endl;
 }
 
-http_request_struct extract_request_info(const char *buffer) {
+void trim(std::string &str) {
+	str.erase(str.begin(), std::ranges::find_if(str.begin(), str.end(), [](unsigned char ch) {
+				  return !std::isspace(ch);
+			  }));
+	str.erase(std::ranges::find_if(str.rbegin(), str.rend(), [](unsigned char ch) {
+				  return !std::isspace(ch);
+			  }).base(),
+			  str.end());
+}
+
+http_request_struct extract_request_info(const std::string &buffer) {
 	std::printf("extract_request_info()\n");
-	// get request target
-	char copy_of_buffer[CHAR_ARRAY_LENGTH];
-	strcpy(copy_of_buffer, buffer);
 
 	http_request_struct request;
 
-	// On a first call, the function expects a C string as argument for str,
-	// whose first character is used as the starting location to scan for
-	// tokens. In subsequent calls, the function expects a null pointer and uses
-	// the position right after the end of the last token as the new starting
-	// location for scanning.
-	// https://cplusplus.com/reference/cstring/strtok/
-	strcpy(request.request_line_method, strtok(copy_of_buffer, " "));
-	strcpy(request.request_line_target, strtok(nullptr, " "));
+	std::istringstream buffer_iss(buffer);
+	// Use getline for line-by-line parsing
+	std::getline(buffer_iss, request.request_line_method, ' '); // Read method till space
+	std::getline(buffer_iss, request.request_line_target);		// Read target
 
-	const char *p_end_of_request_line = strstr(buffer, "\r\n");
-	const char *p_end_of_headers = strstr(p_end_of_request_line, "\r\n\r\n");
-	const char *c_headers = p_end_of_request_line + 2;
-	char headers[CHAR_ARRAY_LENGTH];
-	strcpy(headers, c_headers);
-
-	if (p_end_of_headers != nullptr) {
-		headers[p_end_of_headers - p_end_of_request_line] = 0;
+	std::string headers;
+	// Read headers until an empty line
+	while (std::getline(buffer_iss, headers) && !headers.empty()) {
+		headers += '\n'; // Add newline back for proper parsing
 	}
 
-	std::cout << "Just the headers:\n↓\n"
-			  << headers << "\n↑" << std::endl;
+	std::istringstream headers_stream(headers);
+	std::string header;
+	// Parse headers using getline and string manipulation
+	while (std::getline(headers_stream, header, '\r')) { // Read header line
+		if (header.empty()) {
+			continue; // Skip empty line
+		}
 
-	const char *header;
-	char field[CHAR_ARRAY_LENGTH];
-	char value[CHAR_ARRAY_LENGTH];
-	char headers_copy[CHAR_ARRAY_LENGTH];
-	char *headers_ptr = headers;
+		size_t colon_pos = header.find(':');
+		if (colon_pos != std::string::npos) {
+			std::string field = header.substr(0, colon_pos);
+			trim(field); // Remove leading/trailing whitespace from field
 
-	// user strtok_r() since we're tokenizing two strings at the same time
-	std::cout << "Individual headers:\n↓" << std::endl;
-	bool done = false;
-	while (!done) {
-		header = strtok_r(headers_ptr, "\r\n", &headers_ptr);
-		done = !header;
-		if (!done) {
-			std::cout << "Header: " << header << std::endl;
+			std::string value = header.substr(colon_pos + 1);
+			trim(value); // Remove leading/trailing whitespace from value
 
-			strcpy(headers_copy, header);
-			strcpy(field, strtok(headers_copy, ":"));
-			std::cout << "\tField: " << field << std::endl;
-			strcpy(value, header + strlen(field) + strlen(": "));
-			std::cout << "\tValue: " << value << std::endl;
-
-			if (strcmp("Host", field) == 0) {
-				strcpy(request.headers_host, value);
-			} else if (strcmp("User-Agent", field) == 0) {
-				strcpy(request.headers_user_agent, value);
-			} else if (strcmp("Accept", field) == 0) {
-				strcpy(request.headers_accept, value);
-			} else if (strcmp("Accept-Encoding", field) == 0) {
-				strcpy(request.headers_accept_encoding, value);
-			} else if (strcmp("Content-Type", field) == 0) {
-				strcpy(request.headers_content_type, value);
-			} else if (strcmp("Content-Length", field) == 0) {
-				strcpy(request.headers_content_length, value);
+			if (field == "Host") {
+				request.headers_host = value;
+			} else if (field == "User-Agent") {
+				request.headers_user_agent = value;
+			} else if (field == "Accept") {
+				request.headers_accept = value;
+			} else if (field == "Accept-Encoding") {
+				request.headers_accept_encoding = value;
+			} else if (field == "Content-Type") {
+				request.headers_content_type = value;
+			} else if (field == "Content-Length") {
+				request.headers_content_length = value;
 			}
 		}
 	}
-	std::cout << "↑" << std::endl;
 
-	char body[CHAR_ARRAY_LENGTH];
-	if (p_end_of_headers != nullptr) {
-		strcpy(body, p_end_of_headers + 4);
-		std::cout << "Just the body:\n↓\n"
-				  << body << "\n↑" << std::endl;
+	// Extract body if present (after empty header line)
+	if (buffer_iss.eof()) {
+		request.body = "";
 	} else {
-		strcpy(body, "");
-		std::printf("No body\n");
+		std::getline(buffer_iss, request.body); // Read entire body data
 	}
-	strcpy(request.body, body);
 
 	return request;
 }
 
-void filename_to_content_type(const char *filename, char *content_type) {
-	std::printf("Checking if '%s' contains '.html'\n", filename);
-	if (strstr(filename, ".html") != nullptr) {
+void filename_to_content_type(const std::string &filename, std::string &content_type) {
+	std::printf("Checking if '%s' contains '.html'\n", filename.c_str());
+	if (filename.find(".html") != std::string::npos) {
 		std::printf("It does\n");
-		strcpy(content_type, "text/html");
+		content_type = "text/html";
 	} else {
 		std::printf("It doesn't\n");
-		strcpy(content_type, "application/octet-stream");
+		content_type = "application/octet-stream";
 	}
 }
 
-void endpoints(const int client_fd, const char *original_buffer, const char *files_dir) {
+void endpoints(const int client_fd, const std::string &original_buffer, const std::string &files_dir) {
 	std::printf("Endpoints()\n");
 	http_request_struct request = extract_request_info(original_buffer);
 	http_response_struct response;
 
-	if (strcmp("", request.headers_accept_encoding) != 0) {
+	if (!request.headers_accept_encoding.empty()) {
 		// client sent Accepted-Encoding header
-		char *encoding_token;
-		bool first_call_to_strtok = true;
-
+		std::istringstream headers_accept_encoding_iss(request.headers_accept_encoding);
+		std::string encoding_token;
 		bool done = false;
-		while (encoding_token && !done) {
-			if (first_call_to_strtok) {
-				encoding_token = strtok(request.headers_accept_encoding, ", ");
-				first_call_to_strtok = false;
-			} else {
-				encoding_token = strtok(nullptr, ", ");
-			}
-
-			if (encoding_token == nullptr) {
-				break;
-			}
+		while (std::getline(headers_accept_encoding_iss, encoding_token, ',')) {
 			std::cout << "Encoding token: " << encoding_token << std::endl;
-
-			if (strcmp("gzip", encoding_token) == 0) {
-				strcpy(response.headers_content_encoding, encoding_token);
+			if (encoding_token == "gzip") {
+				response.headers_content_encoding = encoding_token;
 				std::cout << "Client requested valid encoding: " << encoding_token << std::endl;
 				break;
 			} else {
@@ -246,33 +214,23 @@ void endpoints(const int client_fd, const char *original_buffer, const char *fil
 		}
 	}
 
-	std::printf("Request line target: %s\n", request.request_line_target);
-	// return value 0 means the strings are equal
-	// https://cplusplus.com/reference/cstring/strcmp/
-	if (strcmp("/", request.request_line_target) == 0) {
+	std::printf("Request line target: %s\n", request.request_line_target.c_str());
+	if (request.request_line_target == "/") {
 		std::printf("Endpoint: /\n");
 		send_response(client_fd, response, 200);
-	} else if (memcmp("/echo/", request.request_line_target, 6) == 0) {
+	} else if (request.request_line_target.substr(0, 6) == "/echo/") {
 		std::printf("Endpoint: /echo/\n");
-		char parameter[CHAR_ARRAY_LENGTH];
-		int param_len = strlen(request.request_line_target) - 6;
-		strncpy(parameter, request.request_line_target + 6, param_len);
-		parameter[param_len] = 0;
+		std::string parameter = request.request_line_target.substr(6);
 		std::cout << "Parameter: " << parameter << std::endl;
 		send_response(client_fd, response, 200, parameter);
-	} else if (memcmp("/files/", request.request_line_target, 7) == 0) {
+	} else if (request.request_line_target.substr(0, 7) == "/files/") {
 		std::printf("Endpoint: /files/\n");
-		char filename[CHAR_ARRAY_LENGTH];
-		int param_len = strlen(request.request_line_target) - 6;
-		strncpy(filename, request.request_line_target + 7, param_len);
-		filename[param_len] = 0;
-		char absolute_path[CHAR_ARRAY_LENGTH];
-		strcpy(absolute_path, files_dir);
-		strcat(absolute_path, filename);
+		std::string filename = request.request_line_target.substr(7);
+		std::string absolute_path = files_dir + filename;
 		std::cout << "Path of requested file: " << absolute_path << std::endl;
 
-		if (strcmp("GET", request.request_line_method) == 0) {
-			FILE *requested_file_fd = fopen(absolute_path, "r");
+		if (request.request_line_method == "GET") {
+			FILE *requested_file_fd = fopen(absolute_path.c_str(), "r");
 			if (requested_file_fd != nullptr) {
 				// file exists
 				char file_contents[CHAR_ARRAY_LENGTH];
@@ -280,7 +238,7 @@ void endpoints(const int client_fd, const char *original_buffer, const char *fil
 				std::cout << "File contents:\n↓\n"
 						  << file_contents << "\n↑" << std::endl;
 				file_contents[strlen(file_contents) + 1] = 0;
-				char content_type[1024];
+				std::string content_type;
 				// setting correct Content-Type for .html files, so they're displayed instead of downloaded by Firefox
 				// https://stackoverflow.com/a/28006229/2278742
 				filename_to_content_type(filename, content_type);
@@ -290,16 +248,16 @@ void endpoints(const int client_fd, const char *original_buffer, const char *fil
 				// file doesn't exist
 				send_response(client_fd, response, 404);
 			}
-		} else if (strcmp("POST", request.request_line_method) == 0) {
+		} else if (request.request_line_method == "POST") {
 			std::cout << "Writing file '" << absolute_path << "'" << std::endl;
-			if (FILE *file_to_write_fd = fopen(absolute_path, "w"); file_to_write_fd != nullptr) {
-				fputs(request.body, file_to_write_fd);
+			if (FILE *file_to_write_fd = fopen(absolute_path.c_str(), "w"); file_to_write_fd != nullptr) {
+				fputs(request.body.c_str(), file_to_write_fd);
 				fclose(file_to_write_fd);
 			}
 
 			send_response(client_fd, response, 201);
 		}
-	} else if (memcmp("/user-agent", request.request_line_target, 11) == 0) {
+	} else if (request.request_line_target.substr(0, 11) == "/user-agent") {
 		std::printf("Endpoint: /user-agent\n");
 		send_response(client_fd, response, 200, request.headers_user_agent);
 	} else {
@@ -311,20 +269,13 @@ void endpoints(const int client_fd, const char *original_buffer, const char *fil
 // https://www.ibm.com/docs/en/zos/2.4.0?topic=functions-pthread-create-create-thread
 // https://hpc-tutorials.llnl.gov/posix/passing_args/
 void *thread(void *arg) {
-	char *ret;
 	std::printf("thread() entered\n");
 
 	arg_struct *arg_cast_to_struct = (arg_struct *)arg;
 	int server_fd = arg_cast_to_struct->server_fd;
 	sockaddr_in client_addr = arg_cast_to_struct->client_addr;
 	socklen_t client_addr_len = arg_cast_to_struct->client_addr_len;
-	char *files_dir = arg_cast_to_struct->files_dir;
-
-	if ((ret = (char *)malloc(20)) == nullptr) {
-		perror("malloc() error");
-		exit(2);
-	}
-	strcpy(ret, "This is a test");
+	std::string files_dir = arg_cast_to_struct->files_dir;
 
 	std::cout << "Waiting for a client to connect...\n";
 
@@ -332,10 +283,10 @@ void *thread(void *arg) {
 	int client_fd = accept(server_fd, (struct sockaddr *)&client_addr, &client_addr_len);
 	std::cout << "Client connected\n";
 
-	char request_buffer[CHAR_ARRAY_LENGTH];
+	std::string request_buffer;
+	request_buffer.resize(CHAR_ARRAY_LENGTH);
 	// https://pubs.opengroup.org/onlinepubs/009695399/functions/recvfrom.html
-	recvfrom(client_fd, (void *)request_buffer, CHAR_ARRAY_LENGTH, 0,
-			 (struct sockaddr *)&client_addr, &client_addr_len);
+	recvfrom(client_fd, request_buffer.data(), request_buffer.size(), 0, (struct sockaddr *)&client_addr, &client_addr_len);
 	std::cout << "Message received:\n↓\n"
 			  << request_buffer << "\n↑" << std::endl;
 
@@ -343,7 +294,7 @@ void *thread(void *arg) {
 
 	close(client_fd);
 
-	pthread_exit(ret);
+	pthread_exit(nullptr); // Don't use memory allocated in the thread for return value
 }
 
 int main(int argc, char *argv[]) {
@@ -351,11 +302,11 @@ int main(int argc, char *argv[]) {
 		std::cout << "argv: " << argv[i] << std::endl;
 	}
 
-	char files_dir[CHAR_ARRAY_LENGTH];
+	std::string files_dir;
 	if (argc == 3) {
-		strcpy(files_dir, argv[2]);
+		files_dir = argv[2];
 	} else {
-		strcpy(files_dir, "./");
+		files_dir = "./";
 	}
 
 	// Flush after every std::cout / std::cerr
@@ -392,7 +343,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	struct sockaddr_in client_addr;
-	int client_addr_len = sizeof(client_addr);
+	socklen_t client_addr_len = sizeof(client_addr);
 
 	// create as many threads as there are places in the queue created by listen()
 	// https://www.ibm.com/docs/en/zos/2.4.0?topic=functions-pthread-create-create-thread
@@ -404,10 +355,10 @@ int main(int argc, char *argv[]) {
 	thread_args.server_fd = server_fd;
 	thread_args.client_addr = client_addr;
 	thread_args.client_addr_len = client_addr_len;
-	strcpy(thread_args.files_dir, files_dir);
+	thread_args.files_dir = files_dir;
 
 	// create 5 concurrent threads listen()ing to connections
-	// when all 5 threads ahave terminated, create 5 new ones
+	// when all 5 threads have terminated, create 5 new ones
 	while (true) {
 		for (int i = 0; i < NUM_THREADS; i++) {
 			if (pthread_create(&thread_ids[i], nullptr, thread, (void *)&thread_args) != 0) {
