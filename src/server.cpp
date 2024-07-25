@@ -202,6 +202,17 @@ http_request_struct extract_request_info(const char *buffer) {
 	return request;
 }
 
+void filename_to_content_type(const char *filename, char *content_type) {
+	std::printf("Checking if '%s' contains '.html'\n", filename);
+	if (strstr(filename, ".html") != nullptr) {
+		std::printf("It does\n");
+		strcpy(content_type, "text/html");
+	} else {
+		std::printf("It doesn't\n");
+		strcpy(content_type, "application/octet-stream");
+	}
+}
+
 void endpoints(const int client_fd, const char *original_buffer) {
 	std::printf("Endpoints()\n");
 	http_request_struct request = extract_request_info(original_buffer);
@@ -273,14 +284,7 @@ void endpoints(const int client_fd, const char *original_buffer) {
 				char content_type[1024];
 				// setting correct Content-Type for .html files, so they're displayed instead of downloaded by Firefox
 				// https://stackoverflow.com/a/28006229/2278742
-				std::printf("Checking if '%s' contains '.html'\n", filename);
-				if (strstr(filename, ".html") != nullptr) {
-					std::printf("It does\n");
-					strcpy(content_type, "text/html");
-				} else {
-					std::printf("It doesn't\n");
-					strcpy(content_type, "application/octet-stream");
-				}
+				filename_to_content_type(filename, content_type);
 				send_response(client_fd, response, 200, file_contents, content_type);
 				fclose(requested_file_fd);
 			} else {
