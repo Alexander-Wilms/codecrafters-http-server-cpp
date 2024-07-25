@@ -294,8 +294,11 @@ void endpoints(const int client_fd, const char *original_buffer) {
 		} else if (strcmp("POST", request.request_line_method) == 0) {
 			std::cout << "Writing file '" << absolute_path << "'" << std::endl;
 			FILE *file_to_write_fd = fopen(absolute_path, "w");
-			fputs(request.body, file_to_write_fd);
-			fclose(file_to_write_fd);
+			if (file_to_write_fd != nullptr) {
+				fputs(request.body, file_to_write_fd);
+				fclose(file_to_write_fd);
+			}
+
 			send_response(client_fd, response, 201);
 		}
 	} else if (memcmp("/user-agent", request.request_line_target, 11) == 0) {
