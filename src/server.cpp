@@ -335,13 +335,13 @@ void *thread(void *arg) {
 	std::cout << "Waiting for a client to connect...\n";
 
 	// The accept() function shall extract the first connection on the queue of pending connections, create a new socket with the same socket type protocol and address family as the specified socket, and allocate a new file descriptor for that socket.
-	int client_fd = accept(server_fd, (struct sockaddr *)&client_addr, (socklen_t *)&client_addr_len);
+	int client_fd = accept(server_fd, (struct sockaddr *)&client_addr, &client_addr_len);
 	std::cout << "Client connected\n";
 
 	char request_buffer[CHAR_ARRAY_LENGTH];
 	// https://pubs.opengroup.org/onlinepubs/009695399/functions/recvfrom.html
 	recvfrom(client_fd, (void *)request_buffer, CHAR_ARRAY_LENGTH, 0,
-			 (struct sockaddr *)&client_addr, (socklen_t *)&client_addr_len);
+			 (struct sockaddr *)&client_addr, &client_addr_len);
 	std::cout << "Message received:\n↓\n"
 			  << request_buffer << "\n↑" << std::endl;
 
