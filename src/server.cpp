@@ -272,7 +272,18 @@ void endpoints(int client_fd, char *original_buffer) {
 				std::cout << "File contents:\n↓\n"
 						  << file_contents << "\n↑" << std::endl;
 				file_contents[strlen(file_contents) + 1] = 0;
-				send_response(client_fd, response, 200, file_contents, "application/octet-stream");
+				char content_type[1024];
+				// setting correct Content-Type for .html files, so they're displayed instead of downloaded by Firefox
+				// https://stackoverflow.com/a/28006229/2278742
+				printf("Checking if '%s' contains '.html'\n", filename);
+				if (strstr(filename, ".html") != 0) {
+					printf("It does\n");
+					strcpy(content_type, "text/html");
+				} else {
+					printf("It doesn't\n");
+					strcpy(content_type, "application/octet-stream");
+				}
+				send_response(client_fd, response, 200, file_contents, content_type);
 				fclose(requested_file_fd);
 			} else {
 				// file doesn't exist
