@@ -12,8 +12,10 @@
 #include <unistd.h>
 #include <zlib.h>
 
+#define CHAR_ARRAY_LENGTH 2024
 int NUM_THREADS = 5;
-char files_dir[2048];
+
+char files_dir[CHAR_ARRAY_LENGTH];
 
 struct arg_struct {
 	int server_fd;
@@ -23,28 +25,28 @@ struct arg_struct {
 
 // https://developer.mozilla.org/en-US/docs/Web/HTTP/Messages
 struct http_request_struct {
-	char request_line_method[2048] = "";
-	char request_line_target[2048] = "";
+	char request_line_method[CHAR_ARRAY_LENGTH] = "";
+	char request_line_target[CHAR_ARRAY_LENGTH] = "";
 
-	char headers_host[2048] = "";
-	char headers_user_agent[2048] = "";
-	char headers_accept[2048] = "";
-	char headers_accept_encoding[2048] = "";
-	char headers_content_type[2048] = "";
-	char headers_content_length[2048] = "";
+	char headers_host[CHAR_ARRAY_LENGTH] = "";
+	char headers_user_agent[CHAR_ARRAY_LENGTH] = "";
+	char headers_accept[CHAR_ARRAY_LENGTH] = "";
+	char headers_accept_encoding[CHAR_ARRAY_LENGTH] = "";
+	char headers_content_type[CHAR_ARRAY_LENGTH] = "";
+	char headers_content_length[CHAR_ARRAY_LENGTH] = "";
 
-	char body[2048] = "";
+	char body[CHAR_ARRAY_LENGTH] = "";
 };
 
 struct http_response_struct {
-	char status_line_status_code[2048] = "";
-	char status_line_status_text[2048] = "";
+	char status_line_status_code[CHAR_ARRAY_LENGTH] = "";
+	char status_line_status_text[CHAR_ARRAY_LENGTH] = "";
 
-	char headers_content_encoding[2048] = "";
-	char headers_content_type[2048] = "";
-	char headers_content_length[2048] = "";
+	char headers_content_encoding[CHAR_ARRAY_LENGTH] = "";
+	char headers_content_type[CHAR_ARRAY_LENGTH] = "";
+	char headers_content_length[CHAR_ARRAY_LENGTH] = "";
 
-	char body[2048] = "";
+	char body[CHAR_ARRAY_LENGTH] = "";
 };
 
 void http_response_struct_to_string(http_response_struct response, char *response_string, int content_length) {
@@ -62,7 +64,7 @@ void http_response_struct_to_string(http_response_struct response, char *respons
 void send_response(const int client_fd, http_response_struct response, const int status_code, const char *body = "", const char *content_type = "text/plain") {
 	printf("send_response()\n");
 	// https://pubs.opengroup.org/onlinepubs/007904875/functions/send.html
-	char reason_phrase[2048];
+	char reason_phrase[CHAR_ARRAY_LENGTH];
 
 	switch (status_code) {
 	case 200:
@@ -82,7 +84,7 @@ void send_response(const int client_fd, http_response_struct response, const int
 	strcpy(response.status_line_status_text, reason_phrase);
 	strcpy(response.headers_content_type, content_type);
 
-	Bytef compressed_body[2048];
+	Bytef compressed_body[CHAR_ARRAY_LENGTH];
 	int body_length;
 	if (strcmp("gzip", response.headers_content_encoding) == 0) {
 		std::cout << "About to compress body '" << body << "'" << std::endl;
@@ -94,7 +96,7 @@ void send_response(const int client_fd, http_response_struct response, const int
 		body_length = strlen(body);
 	}
 
-	char response_string[2048];
+	char response_string[CHAR_ARRAY_LENGTH];
 	http_response_struct_to_string(response, response_string, body_length);
 
 	int response_length = strlen(response_string);
@@ -121,9 +123,9 @@ void send_response(const int client_fd, http_response_struct response, const int
 http_request_struct extract_request_info(const char *buffer) {
 	printf("extract_request_info()\n");
 	// get request target
-	char copy_of_buffer[2048];
-	char copy_of_buffer_2[2048];
-	char copy_of_buffer_3[2048];
+	char copy_of_buffer[CHAR_ARRAY_LENGTH];
+	char copy_of_buffer_2[CHAR_ARRAY_LENGTH];
+	char copy_of_buffer_3[CHAR_ARRAY_LENGTH];
 	strcpy(copy_of_buffer, buffer);
 	strcpy(copy_of_buffer_2, buffer);
 	strcpy(copy_of_buffer_3, buffer);
@@ -142,7 +144,7 @@ http_request_struct extract_request_info(const char *buffer) {
 	const char *p_end_of_request_line = strstr(buffer, "\r\n");
 	const char *p_end_of_headers = strstr(p_end_of_request_line, "\r\n\r\n");
 	const char *c_headers = p_end_of_request_line + 2;
-	char headers[2048];
+	char headers[CHAR_ARRAY_LENGTH];
 	strcpy(headers, c_headers);
 
 	if (p_end_of_headers != 0) {
@@ -153,9 +155,9 @@ http_request_struct extract_request_info(const char *buffer) {
 			  << headers << "\n↑" << std::endl;
 
 	char *header;
-	char field[2048];
-	char value[2048];
-	char headers_copy[2048];
+	char field[CHAR_ARRAY_LENGTH];
+	char value[CHAR_ARRAY_LENGTH];
+	char headers_copy[CHAR_ARRAY_LENGTH];
 	char *headers_ptr = headers;
 
 	// user strtok_r() since we're tokenizing two strings at the same time
@@ -190,7 +192,7 @@ http_request_struct extract_request_info(const char *buffer) {
 	}
 	std::cout << "↑" << std::endl;
 
-	char body[2048];
+	char body[CHAR_ARRAY_LENGTH];
 	if (p_end_of_headers != 0) {
 		strcpy(body, p_end_of_headers + 4);
 		std::cout << "Just the body:\n↓\n"
@@ -246,7 +248,7 @@ void endpoints(int client_fd, char *original_buffer) {
 		send_response(client_fd, response, 200);
 	} else if (memcmp("/echo/", request.request_line_target, 6) == 0) {
 		printf("Endpoint: /echo/\n");
-		char parameter[2048];
+		char parameter[CHAR_ARRAY_LENGTH];
 		int param_len = strlen(request.request_line_target) - 6;
 		strncpy(parameter, request.request_line_target + 6, param_len);
 		parameter[param_len] = 0;
@@ -254,11 +256,11 @@ void endpoints(int client_fd, char *original_buffer) {
 		send_response(client_fd, response, 200, parameter);
 	} else if (memcmp("/files/", request.request_line_target, 7) == 0) {
 		printf("Endpoint: /files/\n");
-		char filename[2048];
+		char filename[CHAR_ARRAY_LENGTH];
 		int param_len = strlen(request.request_line_target) - 6;
 		strncpy(filename, request.request_line_target + 7, param_len);
 		filename[param_len] = 0;
-		char absolute_path[2048];
+		char absolute_path[CHAR_ARRAY_LENGTH];
 		strcpy(absolute_path, files_dir);
 		strcat(absolute_path, filename);
 		std::cout << "Path of requested file: " << absolute_path << std::endl;
@@ -267,8 +269,8 @@ void endpoints(int client_fd, char *original_buffer) {
 			FILE *requested_file_fd = fopen(absolute_path, "r");
 			if (requested_file_fd != 0) {
 				// file exists
-				char file_contents[2048];
-				fgets(file_contents, 2048, requested_file_fd);
+				char file_contents[CHAR_ARRAY_LENGTH];
+				fgets(file_contents, CHAR_ARRAY_LENGTH, requested_file_fd);
 				std::cout << "File contents:\n↓\n"
 						  << file_contents << "\n↑" << std::endl;
 				file_contents[strlen(file_contents) + 1] = 0;
@@ -298,9 +300,9 @@ void endpoints(int client_fd, char *original_buffer) {
 		}
 	} else if (memcmp("/user-agent", request.request_line_target, 11) == 0) {
 		printf("Endpoint: /user-agent\n");
-		char user_agent_copy_of_buffer[2048];
+		char user_agent_copy_of_buffer[CHAR_ARRAY_LENGTH];
 		strcpy(user_agent_copy_of_buffer, original_buffer);
-		char user_agent[2048];
+		char user_agent[CHAR_ARRAY_LENGTH];
 		strcpy(user_agent, strtok(user_agent_copy_of_buffer, "\r\n"));
 		std::cout << "Request line: " << user_agent << std::endl;
 		strcpy(user_agent, std::strtok(nullptr, "\r\n"));
@@ -308,7 +310,7 @@ void endpoints(int client_fd, char *original_buffer) {
 		strcpy(user_agent, std::strtok(nullptr, "\r\n"));
 		std::cout << "Header 'User agent': " << user_agent << std::endl;
 
-		char just_the_user_agent[2048];
+		char just_the_user_agent[CHAR_ARRAY_LENGTH];
 		int param_len = strlen(user_agent) - 12;
 		strncpy(just_the_user_agent, user_agent + 12, param_len);
 		send_response(client_fd, response, 200, just_the_user_agent);
@@ -318,6 +320,8 @@ void endpoints(int client_fd, char *original_buffer) {
 	}
 }
 
+// https://www.ibm.com/docs/en/zos/2.4.0?topic=functions-pthread-create-create-thread
+// https://hpc-tutorials.llnl.gov/posix/passing_args/
 void *thread(void *arg) {
 	char *ret;
 	printf("thread() entered\n");
@@ -338,9 +342,9 @@ void *thread(void *arg) {
 	int client_fd = accept(server_fd, (struct sockaddr *)&client_addr, (socklen_t *)&client_addr_len);
 	std::cout << "Client connected\n";
 
-	char request_buffer[2048];
+	char request_buffer[CHAR_ARRAY_LENGTH];
 	// https://pubs.opengroup.org/onlinepubs/009695399/functions/recvfrom.html
-	recvfrom(client_fd, (void *)request_buffer, 2048, 0,
+	recvfrom(client_fd, (void *)request_buffer, CHAR_ARRAY_LENGTH, 0,
 			 (struct sockaddr *)&client_addr, (socklen_t *)&client_addr_len);
 	std::cout << "Message received:\n↓\n"
 			  << request_buffer << "\n↑" << std::endl;
