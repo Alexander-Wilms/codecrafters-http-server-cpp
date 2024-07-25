@@ -410,22 +410,23 @@ int main(int argc, char *argv[]) {
 	args.client_addr = client_addr;
 	args.client_addr_len = client_addr_len;
 
-	for (int i = 0; i < NUM_THREADS; i++) {
-		if (pthread_create(&thread_ids[i], NULL, thread, (void *)&args) != 0) {
-			perror("pthread_create() failed");
-			exit(1);
+	// create 5 concurrent threads listen()ing to connections
+	// when all 5 threads ahave terminated, create 5 new ones
+	while (true) {
+		for (int i = 0; i < NUM_THREADS; i++) {
+			if (pthread_create(&thread_ids[i], NULL, thread, (void *)&args) != 0) {
+				perror("pthread_create() failed");
+				exit(1);
+			}
+		}
+
+		void *ret;
+		// wait for all threads to terminate
+		for (int i = 0; i < NUM_THREADS; i++) {
+			if (pthread_join(thread_ids[i], &ret) != 0) {
+				perror("pthread_join() error");
+				exit(3);
+			}
 		}
 	}
-
-	void *ret;
-	// wait for all threads to terminate
-	for (int i = 0; i < NUM_THREADS; i++) {
-		if (pthread_join(thread_ids[i], &ret) != 0) {
-			perror("pthread_join() error");
-			exit(3);
-		}
-	}
-	close(server_fd);
-
-	return 0;
 }
