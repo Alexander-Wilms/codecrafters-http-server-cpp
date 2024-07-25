@@ -293,8 +293,7 @@ void endpoints(const int client_fd, const char *original_buffer) {
 			}
 		} else if (strcmp("POST", request.request_line_method) == 0) {
 			std::cout << "Writing file '" << absolute_path << "'" << std::endl;
-			FILE *file_to_write_fd = fopen(absolute_path, "w");
-			if (file_to_write_fd != nullptr) {
+			if (FILE *file_to_write_fd = fopen(absolute_path, "w"); file_to_write_fd != nullptr) {
 				fputs(request.body, file_to_write_fd);
 				fclose(file_to_write_fd);
 			}
@@ -369,8 +368,8 @@ int main(int argc, char *argv[]) {
 
 	// Since the tester restarts your program quite often, setting SO_REUSEADDR
 	// ensures that we don't run into 'Address already in use' errors
-	int reuse = 1;
-	if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)) < 0) {
+
+	if (int reuse = 1; setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)) < 0) {
 		std::cerr << "setsockopt failed\n";
 		return 1;
 	}
@@ -385,8 +384,7 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 
-	int connection_backlog = NUM_THREADS;
-	if (listen(server_fd, connection_backlog) != 0) {
+	if (int connection_backlog = NUM_THREADS; listen(server_fd, connection_backlog) != 0) {
 		std::cerr << "listen failed\n";
 		return 1;
 	}
