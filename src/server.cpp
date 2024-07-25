@@ -49,7 +49,7 @@ struct http_response_struct {
 	char body[CHAR_ARRAY_LENGTH] = "";
 };
 
-void http_response_struct_to_string(http_response_struct response, char *response_string, int content_length) {
+void http_response_struct_to_string(const http_response_struct response, char *response_string, const int content_length) {
 	std::string response_std_string = std::string("HTTP/1.1 ") + response.status_line_status_code + " " + response.status_line_status_text + "\r\n" +
 									  "Content-Type: " + response.headers_content_type + "\r\n";
 	if (strcmp("", response.headers_content_encoding) != 0) {
@@ -202,7 +202,7 @@ http_request_struct extract_request_info(const char *buffer) {
 	return request;
 }
 
-void endpoints(int client_fd, char *original_buffer) {
+void endpoints(const int client_fd, const char *original_buffer) {
 	printf("Endpoints()\n");
 	http_request_struct request = extract_request_info(original_buffer);
 	http_response_struct response;
