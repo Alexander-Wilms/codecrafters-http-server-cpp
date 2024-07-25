@@ -20,7 +20,7 @@ struct arg_struct {
 	sockaddr_in client_addr;
 	socklen_t client_addr_len;
 	char files_dir[CHAR_ARRAY_LENGTH];
-} thread_args;
+};
 
 // https://developer.mozilla.org/en-US/docs/Web/HTTP/Messages
 struct http_request_struct {
@@ -314,10 +314,11 @@ void *thread(void *arg) {
 	char *ret;
 	std::printf("thread() entered\n");
 
-	int server_fd = thread_args.server_fd;
-	sockaddr_in client_addr = thread_args.client_addr;
-	socklen_t client_addr_len = thread_args.client_addr_len;
-	char *files_dir = thread_args.files_dir;
+	arg_struct *arg_cast_to_struct = (arg_struct *)arg;
+	int server_fd = arg_cast_to_struct->server_fd;
+	sockaddr_in client_addr = arg_cast_to_struct->client_addr;
+	socklen_t client_addr_len = arg_cast_to_struct->client_addr_len;
+	char *files_dir = arg_cast_to_struct->files_dir;
 
 	if ((ret = (char *)malloc(20)) == nullptr) {
 		perror("malloc() error");
@@ -399,6 +400,7 @@ int main(int argc, char *argv[]) {
 	pthread_t thread_ids[NUM_THREADS];
 
 	// pass arguments as struct
+	arg_struct thread_args;
 	thread_args.server_fd = server_fd;
 	thread_args.client_addr = client_addr;
 	thread_args.client_addr_len = client_addr_len;
