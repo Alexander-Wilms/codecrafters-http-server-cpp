@@ -1,4 +1,5 @@
 #include "../include/compression.h"
+#include <algorithm>
 #include <arpa/inet.h>
 #include <cstdlib>
 #include <cstring>
@@ -391,8 +392,9 @@ int main(int argc, char *argv[]) {
 	// create 5 concurrent threads listen()ing to connections
 	// when all 5 threads have terminated, create 5 new ones
 	while (true) {
-		for (int i = 0; i < NUM_THREADS; i++) {
-			if (pthread_create(&thread_ids[i], nullptr, thread, (void *)&thread_args) != 0) {
+		// https://stackoverflow.com/a/2048377/2278742
+		for (pthread_t &thread_id : thread_ids) {
+			if (pthread_create(&thread_id, nullptr, thread, (void *)&thread_args) != 0) {
 				perror("pthread_create() failed");
 				exit(1);
 			}
@@ -400,8 +402,8 @@ int main(int argc, char *argv[]) {
 
 		void *ret;
 		// wait for all threads to terminate
-		for (int i = 0; i < NUM_THREADS; i++) {
-			if (pthread_join(thread_ids[i], &ret) != 0) {
+		for (pthread_t &thread_id : thread_ids) {
+			if (pthread_join(thread_id, &ret) != 0) {
 				perror("pthread_join() error");
 				exit(3);
 			}
