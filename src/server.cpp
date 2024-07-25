@@ -89,6 +89,7 @@ void send_response(const int client_fd, http_response_struct response, const int
 		std::cout << "About to compress body '" << body << "'" << std::endl;
 		gzip_compress(body.c_str(), compressed_body, &body_length);
 	} else {
+		std::cout << "Not compressing body '" << body << "'" << std::endl;
 		response.body = body;
 		body_length = body.length();
 	}
@@ -231,6 +232,7 @@ void endpoints(const int client_fd, const std::string &original_buffer, const st
 		std::string encoding_token;
 		bool done = false;
 		while (std::getline(headers_accept_encoding_iss, encoding_token, ',')) {
+			trim(encoding_token);
 			std::cout << "Encoding token: " << encoding_token << std::endl;
 			if (encoding_token == "gzip") {
 				response.headers_content_encoding = encoding_token;
