@@ -143,7 +143,7 @@ http_request_struct extract_request_info(const char *buffer) {
 	char headers[CHAR_ARRAY_LENGTH];
 	strcpy(headers, c_headers);
 
-	if (p_end_of_headers != 0) {
+	if (p_end_of_headers != nullptr) {
 		headers[p_end_of_headers - p_end_of_request_line] = 0;
 	}
 
@@ -189,7 +189,7 @@ http_request_struct extract_request_info(const char *buffer) {
 	std::cout << "↑" << std::endl;
 
 	char body[CHAR_ARRAY_LENGTH];
-	if (p_end_of_headers != 0) {
+	if (p_end_of_headers != nullptr) {
 		strcpy(body, p_end_of_headers + 4);
 		std::cout << "Just the body:\n↓\n"
 				  << body << "\n↑" << std::endl;
@@ -221,7 +221,7 @@ void endpoints(const int client_fd, const char *original_buffer) {
 				encoding_token = strtok(nullptr, ", ");
 			}
 
-			if (encoding_token == NULL) {
+			if (encoding_token == nullptr) {
 				break;
 			}
 			std::cout << "Encoding token: " << encoding_token << std::endl;
@@ -263,7 +263,7 @@ void endpoints(const int client_fd, const char *original_buffer) {
 
 		if (strcmp("GET", request.request_line_method) == 0) {
 			FILE *requested_file_fd = fopen(absolute_path, "r");
-			if (requested_file_fd != 0) {
+			if (requested_file_fd != nullptr) {
 				// file exists
 				char file_contents[CHAR_ARRAY_LENGTH];
 				fgets(file_contents, CHAR_ARRAY_LENGTH, requested_file_fd);
@@ -274,7 +274,7 @@ void endpoints(const int client_fd, const char *original_buffer) {
 				// setting correct Content-Type for .html files, so they're displayed instead of downloaded by Firefox
 				// https://stackoverflow.com/a/28006229/2278742
 				printf("Checking if '%s' contains '.html'\n", filename);
-				if (strstr(filename, ".html") != 0) {
+				if (strstr(filename, ".html") != nullptr) {
 					printf("It does\n");
 					strcpy(content_type, "text/html");
 				} else {
@@ -326,7 +326,7 @@ void *thread(void *arg) {
 	sockaddr_in client_addr = args.client_addr;
 	socklen_t client_addr_len = args.client_addr_len;
 
-	if ((ret = (char *)malloc(20)) == NULL) {
+	if ((ret = (char *)malloc(20)) == nullptr) {
 		perror("malloc() error");
 		exit(2);
 	}
@@ -414,7 +414,7 @@ int main(int argc, char *argv[]) {
 	// when all 5 threads ahave terminated, create 5 new ones
 	while (true) {
 		for (int i = 0; i < NUM_THREADS; i++) {
-			if (pthread_create(&thread_ids[i], NULL, thread, (void *)&args) != 0) {
+			if (pthread_create(&thread_ids[i], nullptr, thread, (void *)&args) != 0) {
 				perror("pthread_create() failed");
 				exit(1);
 			}
