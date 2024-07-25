@@ -7,9 +7,9 @@ int gzip_compress(const char *input, Bytef *output, int *compressed_length) {
 	z_stream strm;
 	int ret;
 
-	strm.zalloc = Z_NULL;
-	strm.zfree = Z_NULL;
-	strm.opaque = Z_NULL;
+	strm.zalloc = nullptr;
+	strm.zfree = nullptr;
+	strm.opaque = nullptr;
 
 	ret = deflateInit2(&strm, Z_DEFAULT_COMPRESSION, Z_DEFLATED, MAX_WBITS + 16,
 					   8, Z_DEFAULT_STRATEGY);
